@@ -276,15 +276,15 @@ private fun BottomNav() {
         TAB_LABELS.forEachIndexed { index, label ->
             val selected = Nav.tab == index
             Column(
-                Modifier.weight(1f).fillMaxHeight().tap(label = label) {
+                Modifier.weight(1f).fillMaxHeight().tap(pressedScale = 0.88f, label = label) {
                     if (Nav.tab == index) Nav.stacks[index].clear()
                     Nav.selectTab(index)
                 },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Txt(label.uppercase(), Type.nav, c.onAccentDeep, maxLines = 1, unscaled = true)
-                val dot by animateFloatAsState(if (selected) 1f else 0f, tween(200), label = "dot")
+                val dot by animateFloatAsState(if (selected) 1f else 0f, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = 600f), label = "dot")
+                Txt(label.uppercase(), Type.nav, c.onAccentDeep.copy(alpha = 0.7f + 0.3f * dot.coerceIn(0f, 1f)), maxLines = 1, unscaled = true)
                 Box(Modifier.padding(top = 4.dp).size(5.dp).graphicsLayer { scaleX = dot; scaleY = dot; alpha = dot }.background(c.onAccentDeep, CircleShape))
             }
         }

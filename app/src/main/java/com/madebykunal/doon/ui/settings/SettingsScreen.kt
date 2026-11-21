@@ -60,6 +60,7 @@ import com.madebykunal.doon.state.Dialogs
 import com.madebykunal.doon.state.Prefs
 import com.madebykunal.doon.state.Snack
 import com.madebykunal.doon.state.Ui
+import com.madebykunal.doon.ui.components.Choice
 import com.madebykunal.doon.ui.components.DialogButton
 import com.madebykunal.doon.ui.components.DialogShell
 import com.madebykunal.doon.ui.components.Ic
@@ -71,7 +72,10 @@ import com.madebykunal.doon.ui.components.Txt
 import com.madebykunal.doon.ui.components.hairlineTop
 import com.madebykunal.doon.ui.components.tap
 import com.madebykunal.doon.ui.theme.Accents
+import com.madebykunal.doon.ui.theme.FONTS
 import com.madebykunal.doon.ui.theme.GUTTER
+import com.madebykunal.doon.ui.theme.HIT_TARGET
+import com.madebykunal.doon.ui.theme.headingSample
 import com.madebykunal.doon.ui.theme.RADIUS_CARD
 import com.madebykunal.doon.ui.theme.ROW_MIN_HEIGHT
 import com.madebykunal.doon.ui.theme.Space
@@ -105,7 +109,16 @@ fun SettingsScreen() {
     Ui.resumes
     val missing = missingPermissions()
     Column(Modifier.fillMaxSize()) {
-        ScreenHeader("Settings", back = true, backIcon = Ic.ChevronUp)
+        ScreenHeader("Settings") {
+            val turn = remember { Animatable(180f) }
+            LaunchedEffect(Unit) { turn.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 0.55f, stiffness = 300f)) }
+            Box(
+                Modifier.size(HIT_TARGET).tap(pressedAlpha = 0.6f, pressedScale = 0.82f, label = "Close settings") { Nav.popScreen() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Ic.ChevronUp, c.inkMuted, 26.dp, modifier = Modifier.graphicsLayer { rotationZ = turn.value })
+            }
+        }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = Space.s)) {
             categories.forEachIndexed { i, (id, label) ->
                 val shown = remember { Animatable(0f) }
@@ -253,19 +266,20 @@ private fun AppearancePage(onCustom: () -> Unit) {
         }
     }
     SubLabel("Theme")
-    Row(Modifier.fillMaxWidth().padding(horizontal = Space.s)) {
-        THEMES.forEach { (mode, label) ->
-            val selected = Prefs.themeMode == mode
-            Column(
-                Modifier.weight(1f).height(60.dp).tap(label = label) { Prefs.setThemeMode(mode) },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Txt(label.uppercase(), Type.nav, if (selected) c.accentText else c.inkMuted, maxLines = 1, unscaled = true)
-                Box(Modifier.padding(top = 4.dp).size(5.dp).background(if (selected) c.accentText else Color.Transparent, CircleShape))
+    Column(Modifier.fillMaxWidth().padding(horizontal = GUTTER, vertical = Space.s), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        THEMES.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                pair.forEach { (mode, label) -> Choice(label, Prefs.themeMode == mode, Modifier.weight(1f)) { Prefs.setThemeMode(mode) } }
             }
         }
     }
+    SubLabel("Font")
+    Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER, vertical = Space.s), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        FONTS.forEach { (id, label) ->
+            Choice(label, Prefs.font == id, Modifier.weight(1f), style = headingSample(id).copy(fontSize = 18.sp, lineHeight = 22.sp)) { Prefs.setFont(id) }
+        }
+    }
+    Txt("Changes headings, numbers and the tab bar.", Type.caption, c.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.xs, bottom = Space.s))
 }
 
 private fun missingPermissions(): Int {
@@ -338,7 +352,7 @@ private fun PermissionRow(title: String, reason: String, granted: Boolean, neede
 
 @Composable
 private fun SubLabel(text: String) {
-    Txt(text, Type.secondary, colors.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.s))
+    Txt(text.uppercase(), Type.label, colors.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.xl, bottom = Space.xs))
 }
 
 @Composable

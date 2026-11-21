@@ -74,6 +74,10 @@ object Prefs {
     var countdownSound by mutableStateOf("")
         private set
 
+    @set:JvmName("assign_font")
+    var font by mutableStateOf("condensed")
+        private set
+
     val weekStart: Int get() = weekStartsOn ?: Dates.localeWeekStart()
 
     fun load(context: Context) {
@@ -97,6 +101,7 @@ object Prefs {
         defaultCountdownAlerts = prefs.getString("defaultCountdownAlerts", null)
             ?.split(",")?.mapNotNull { it.toIntOrNull() } ?: defaultCountdownAlerts
         fullScreenAlerts = prefs.getBoolean("fullScreenAlerts", fullScreenAlerts)
+        font = prefs.getString("font", font)!!
         taskSound = prefs.getString("taskSound", taskSound)!!
         countdownSound = prefs.getString("countdownSound", countdownSound)!!
     }
@@ -131,4 +136,5 @@ object Prefs {
     fun setFullScreenAlerts(v: Boolean) { fullScreenAlerts = v; saved("fullScreenAlerts") { putBoolean("fullScreenAlerts", v) } }
     fun setTaskSound(v: String) { taskSound = v; saved("taskSound") { putString("taskSound", v) } }
     fun setCountdownSound(v: String) { countdownSound = v; saved("countdownSound") { putString("countdownSound", v) } }
+    fun setFont(v: String) { font = v; saved("font") { putString("font", v) } }
 }

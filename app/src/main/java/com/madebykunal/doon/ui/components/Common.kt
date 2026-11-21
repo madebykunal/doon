@@ -76,6 +76,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -128,6 +129,7 @@ fun Modifier.tap(
     enabled: Boolean = true,
     pressedAlpha: Float? = null,
     pressedColor: Color? = null,
+    pressedScale: Float? = null,
     role: Role? = Role.Button,
     label: String? = null,
     onLongClick: (() -> Unit)? = null,
@@ -138,6 +140,10 @@ fun Modifier.tap(
     var m: Modifier = this
     if (pressedColor != null && pressed) m = m.background(pressedColor)
     if (pressedAlpha != null) m = m.alpha(if (pressed) pressedAlpha else 1f)
+    if (pressedScale != null) {
+        val scale by animateFloatAsState(if (pressed) pressedScale else 1f, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = 900f), label = "press")
+        m = m.graphicsLayer { scaleX = scale; scaleY = scale }
+    }
     m.combinedClickable(
         interactionSource = source,
         indication = null,
@@ -162,7 +168,7 @@ fun Modifier.hairlineTop(color: Color): Modifier = drawBehind {
 
 @Composable
 fun HeaderButton(ic: Ic, label: String, size: Dp = 20.dp, onClick: () -> Unit) {
-    Box(Modifier.size(HIT_TARGET).tap(pressedAlpha = 0.5f, label = label, onClick = onClick), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(HIT_TARGET).tap(pressedAlpha = 0.6f, pressedScale = 0.82f, label = label, onClick = onClick), contentAlignment = Alignment.Center) {
         Icon(ic, colors.inkMuted, size)
     }
 }
@@ -363,7 +369,7 @@ fun DialogButton(action: DialogAction, modifier: Modifier = Modifier, onClick: (
         else -> c.hairline to c.ink
     }
     Box(
-        modifier.heightIn(min = 48.dp).background(fill).tap(pressedAlpha = 0.8f, label = action.label, onClick = onClick).padding(horizontal = Space.l),
+        modifier.heightIn(min = 48.dp).tap(pressedAlpha = 0.85f, pressedScale = 0.96f, label = action.label, onClick = onClick).background(fill).padding(horizontal = Space.l),
         contentAlignment = Alignment.Center,
     ) {
         Txt(action.label.uppercase(), Type.nav.copy(fontSize = 18.sp, lineHeight = 22.sp), ink, maxLines = 1, unscaled = true)
@@ -371,14 +377,14 @@ fun DialogButton(action: DialogAction, modifier: Modifier = Modifier, onClick: (
 }
 
 @Composable
-fun DialogShell(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+fun DialogShell(onDismiss: () -> Unit, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val c = colors
     Box(
         Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).tap(role = null, label = "Dismiss", onClick = onDismiss).padding(Space.xxl),
         contentAlignment = Alignment.Center,
     ) {
         Column(
-            Modifier.widthIn(max = 360.dp).fillMaxWidth().clip(RectangleShape).background(c.surface)
+            modifier.widthIn(max = 360.dp).fillMaxWidth().clip(RectangleShape).background(c.surface)
                 .border(1.dp, c.hairline, RectangleShape).blockTaps().padding(Space.xxl),
             content = content,
         )
@@ -390,9 +396,15 @@ fun DialogHost() {
     val dialog = Dialogs.current
     var last by remember { mutableStateOf(dialog) }
     if (dialog != null) last = dialog
-    AnimatedVisibility(dialog != null, enter = fadeIn(tween(110)), exit = fadeOut(tween(110))) {
+    AnimatedVisibility(dialog != null, enter = fadeIn(tween(140)), exit = fadeOut(tween(120))) {
         val d = last ?: return@AnimatedVisibility
-        DialogShell(Dialogs::dismiss) {
+        DialogShell(
+            Dialogs::dismiss,
+            Modifier.animateEnterExit(
+                androidx.compose.animation.scaleIn(androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 700f), initialScale = 0.9f),
+                androidx.compose.animation.scaleOut(tween(120), targetScale = 0.95f),
+            ),
+        ) {
             Txt(d.title.uppercase(), Type.display.copy(fontSize = 22.sp, lineHeight = 26.sp), unscaled = true)
             if (d.message != null) Txt(d.message, Type.secondary, colors.inkMuted, Modifier.padding(top = Space.s))
             val stacked = d.actions.size > 2
@@ -423,10 +435,14 @@ fun SnackbarHost(bottom: Dp) {
         Snack.dismiss(id)
     }
     Box(Modifier.fillMaxSize().padding(start = Space.l, end = Space.l, bottom = bottom), contentAlignment = Alignment.BottomCenter) {
-        AnimatedVisibility(snack != null, enter = fadeIn(tween(160)) + slideInVertically(tween(160)) { it / 2 }, exit = fadeOut(tween(160)) + slideOutVertically(tween(160)) { it / 2 }) {
+        AnimatedVisibility(
+            snack != null,
+            enter = fadeIn(tween(160)) + slideInVertically(androidx.compose.animation.core.spring(dampingRatio = 0.75f, stiffness = 500f)) { it },
+            exit = fadeOut(tween(140)) + slideOutVertically(tween(160)) { it / 2 },
+        ) {
             val s = last ?: return@AnimatedVisibility
-            val bg = if (c.dark) c.ink else Color(0xFF26262A)
-            val fg = if (c.dark) c.bg else Color.White
+            val bg = c.ink
+            val fg = c.bg
             Row(
                 Modifier.fillMaxWidth().clip(RectangleShape).background(bg).padding(horizontal = Space.l, vertical = Space.m),
                 verticalAlignment = Alignment.CenterVertically,
@@ -435,7 +451,7 @@ fun SnackbarHost(bottom: Dp) {
                 Txt(s.message, Type.secondary, fg, Modifier.weight(1f), maxLines = 2)
                 val undo = s.onUndo
                 if (undo != null) {
-                    Txt("Undo", Type.secondaryStrong, fg, Modifier.tap(label = "Undo") {
+                    Txt("UNDO", Type.nav.copy(fontSize = 18.sp, lineHeight = 20.sp), fg, Modifier.tap(pressedScale = 0.9f, label = "Undo") {
                         if (System.currentTimeMillis() < s.undoUntil) undo()
                         Snack.dismiss(s.id)
                     })
@@ -466,5 +482,19 @@ fun EmptyState(title: String, body: String) {
     ) {
         Txt(title, Type.h2, align = TextAlign.Center)
         Txt(body, Type.secondary, colors.inkMuted, align = TextAlign.Center)
+    }
+}
+
+@Composable
+fun Choice(label: String, selected: Boolean, modifier: Modifier = Modifier, style: TextStyle = Type.nav.copy(fontSize = 17.sp, lineHeight = 20.sp), onClick: () -> Unit) {
+    val c = colors
+    val fill by animateColorAsState(if (selected) c.accent else Color.Transparent, tween(180), label = "choice")
+    val ink by animateColorAsState(if (selected) c.onAccent else c.ink, tween(180), label = "choiceInk")
+    Box(
+        modifier.tap(pressedScale = 0.95f, label = label, onClick = onClick).heightIn(min = 44.dp).background(fill)
+            .border(1.dp, if (selected) c.accent else c.hairline).padding(horizontal = Space.s, vertical = Space.s),
+        contentAlignment = Alignment.Center,
+    ) {
+        Txt(label.uppercase(), style, ink, maxLines = 2, align = TextAlign.Center, unscaled = true)
     }
 }

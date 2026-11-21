@@ -4,6 +4,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -303,7 +306,6 @@ fun CountdownDetailScreen(id: String) {
         CountdownMath.isPast(item.dates, today) -> breakdown(target, today)
         else -> breakdown(today, target)
     }
-    val spelled = cells.filter { it.first > 0 }.ifEmpty { cells.takeLast(1) }.joinToString(" · ") { "${it.first} ${it.second}" }
     val options = if (display.numeric) measures(display.value.toLong(), display.unit) else emptyList()
     var unitIndex by remember(id) { mutableIntStateOf(0) }
     val measure = options.getOrNull(unitIndex % maxOf(1, options.size))
@@ -332,9 +334,9 @@ fun CountdownDetailScreen(id: String) {
                 if (measure != null) {
                     val text = formatMeasure(counted.value, measure.decimals)
                     val size = when {
-                        text.length <= 3 -> 128
-                        text.length <= 5 -> 100
-                        else -> 76
+                        text.length <= 3 -> 112
+                        text.length <= 5 -> 90
+                        else -> 70
                     }
                     FlowRow(
                         Modifier.padding(top = Space.xxl),
@@ -362,7 +364,7 @@ fun CountdownDetailScreen(id: String) {
                     )
                 }
                 if (cells.count { it.first > 0 } > 1 || (isToday && item.targetTime != null)) {
-                    Txt(spelled, Type.secondary, c.inkMuted, Modifier.padding(top = Space.m))
+                    Breakdown(cells, Modifier.padding(top = Space.xl))
                 }
             }
 
@@ -417,6 +419,26 @@ fun CountdownDetailScreen(id: String) {
                 }
             }
             Spacer(Modifier.height(dockInset()))
+        }
+    }
+}
+
+@Composable
+private fun Breakdown(cells: List<Pair<Long, String>>, modifier: Modifier = Modifier) {
+    val c = colors
+    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min).border(1.dp, c.hairline)) {
+        cells.forEachIndexed { i, (value, label) ->
+            if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(c.hairline))
+            val shown = remember { Animatable(0f) }
+            LaunchedEffect(value) { shown.animateTo(1f, tween(380, delayMillis = 90 * i, easing = FastOutSlowInEasing)) }
+            Column(
+                Modifier.weight(1f).graphicsLayer { alpha = shown.value; translationY = (1f - shown.value) * 10.dp.toPx() }
+                    .padding(horizontal = Space.m, vertical = Space.m),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Txt(value.toString(), Type.display.copy(fontSize = 32.sp, lineHeight = 34.sp), if (value > 0) c.ink else c.inkMuted, maxLines = 1, tabularNums = true, unscaled = true)
+                Txt(label.uppercase(), Type.label.copy(fontSize = 10.sp), c.inkMuted, maxLines = 1, unscaled = true)
+            }
         }
     }
 }

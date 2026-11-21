@@ -165,6 +165,24 @@ private val platform = PlatformTextStyle(includeFontPadding = false)
 private fun style(family: FontFamily, weight: FontWeight, size: Int, line: Int) =
     TextStyle(fontFamily = family, fontWeight = weight, fontSize = size.sp, lineHeight = line.sp, lineHeightStyle = trim, platformStyle = platform)
 
+private class Headings(family: FontFamily, weight: FontWeight, spacing: Float) {
+    val display = style(family, weight, 24, 28).copy(letterSpacing = spacing.sp)
+    val listName = style(family, weight, 25, 30).copy(letterSpacing = spacing.sp)
+    val nav = style(family, weight, 20, 24).copy(letterSpacing = spacing.sp)
+}
+
+val FONTS = listOf("condensed" to "Doon", "inter" to "Inter", "bricolage" to "Bricolage")
+
+private val headings = mapOf(
+    "condensed" to Headings(Condensed, FontWeight.Medium, 0.2f),
+    "inter" to Headings(TextFamily, FontWeight.SemiBold, -0.2f),
+    "bricolage" to Headings(Display, FontWeight.SemiBold, -0.2f),
+)
+
+private val current: Headings get() = headings[Prefs.font] ?: headings.getValue("condensed")
+
+fun headingSample(id: String): TextStyle = (headings[id] ?: headings.getValue("condensed")).nav
+
 object Type {
     val hero = style(Display, FontWeight.Bold, 88, 92)
     val numeral = style(Display, FontWeight.Bold, 56, 60)
@@ -177,9 +195,9 @@ object Type {
     val caption = style(TextFamily, FontWeight.Normal, 13, 17)
     val captionStrong = style(TextFamily, FontWeight.Medium, 13, 17)
     val micro = style(TextFamily, FontWeight.Medium, 11, 14)
-    val display = style(Condensed, FontWeight.Medium, 24, 28).copy(letterSpacing = 0.2.sp)
-    val listName = style(Condensed, FontWeight.Medium, 25, 30).copy(letterSpacing = 0.2.sp)
-    val nav = style(Condensed, FontWeight.Medium, 20, 24).copy(letterSpacing = 0.2.sp)
+    val display: TextStyle get() = current.display
+    val listName: TextStyle get() = current.listName
+    val nav: TextStyle get() = current.nav
     val heading = style(TextFamily, FontWeight.SemiBold, 14, 20).copy(letterSpacing = 0.8.sp)
     val label = style(TextFamily, FontWeight.SemiBold, 12, 16).copy(letterSpacing = 1.2.sp)
 }

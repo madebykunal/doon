@@ -86,7 +86,12 @@ fun SheetHost(content: @Composable (SheetEntry) -> Unit) {
                         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).imePadding(),
                         contentAlignment = Alignment.BottomCenter,
                     ) {
-                        Box(Modifier.animateEnterExit(slideInVertically(tween(220)) { it }, slideOutVertically(tween(180)) { it })) {
+                        Box(
+                            Modifier.animateEnterExit(
+                                slideInVertically(tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing)) { it },
+                                slideOutVertically(tween(200, easing = androidx.compose.animation.core.FastOutLinearInEasing)) { it },
+                            ),
+                        ) {
                             CompositionLocalProvider(LocalSheetClose provides close) { content(entry) }
                         }
                     }
@@ -152,7 +157,7 @@ fun SheetFrame(
                 Box(Modifier.widthIn(min = 64.dp).heightIn(min = HIT_TARGET).tap(label = "Cancel", onClick = close), contentAlignment = Alignment.CenterStart) {
                     Txt("Cancel", Type.secondary, c.inkMuted)
                 }
-                Txt(title, Type.secondaryStrong, modifier = Modifier.weight(1f), maxLines = 1, align = TextAlign.Center)
+                Txt(title.uppercase(), Type.nav, modifier = Modifier.weight(1f), maxLines = 1, align = TextAlign.Center, unscaled = true)
                 Box(Modifier.widthIn(min = 64.dp).heightIn(min = HIT_TARGET), contentAlignment = Alignment.CenterEnd) {
                     if (action != null) {
                         val (label, enabled, run) = action

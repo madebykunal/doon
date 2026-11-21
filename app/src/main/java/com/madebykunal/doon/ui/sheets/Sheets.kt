@@ -84,6 +84,7 @@ import com.madebykunal.doon.state.TodoActions
 import com.madebykunal.doon.state.TodoDetails
 import com.madebykunal.doon.state.Ui
 import com.madebykunal.doon.ui.components.DatePicker
+import com.madebykunal.doon.ui.components.Choice
 import com.madebykunal.doon.ui.components.Field
 import com.madebykunal.doon.ui.components.Ic
 import com.madebykunal.doon.ui.components.Icon
@@ -496,19 +497,6 @@ private fun EditorLabel(text: String) {
 }
 
 @Composable
-private fun BlockChoice(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val c = colors
-    val fill by animateColorAsState(if (selected) c.accent else Color.Transparent, tween(160), label = "choice")
-    Box(
-        modifier.heightIn(min = 44.dp).background(fill).border(1.dp, if (selected) c.accent else c.hairline)
-            .tap(label = label, onClick = onClick).padding(horizontal = Space.s, vertical = Space.s),
-        contentAlignment = Alignment.Center,
-    ) {
-        Txt(label.uppercase(), Type.nav.copy(fontSize = 17.sp, lineHeight = 20.sp), if (selected) c.onAccent else c.ink, maxLines = 2, align = TextAlign.Center, unscaled = true)
-    }
-}
-
-@Composable
 private fun CountdownEditorSheet(id: String?) {
     val c = colors
     val close = LocalSheetClose.current
@@ -561,7 +549,7 @@ private fun CountdownEditorSheet(id: String?) {
         EditorLabel("Type")
         Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             COUNTDOWN_KINDS.forEach { (k, label, _) ->
-                BlockChoice(label, kind == k, Modifier.weight(1f)) {
+                Choice(label, kind == k, Modifier.weight(1f)) {
                     kind = k
                     kindChosen = true
                 }
@@ -595,7 +583,7 @@ private fun CountdownEditorSheet(id: String?) {
             EditorLabel("Remind me")
             Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 CountdownMath.alerts.forEach { (offset, label) ->
-                    BlockChoice(label, offset in notify, Modifier.weight(1f)) { notify = if (offset in notify) notify - offset else notify + offset }
+                    Choice(label, offset in notify, Modifier.weight(1f)) { notify = if (offset in notify) notify - offset else notify + offset }
                 }
             }
         }

@@ -25,7 +25,7 @@ enum class Ic(vararg val d: String) {
     ChevronRight("m9 18 6-6-6-6"),
     FolderPlus("M12 10v6", "M9 13h6", "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"),
     Heading("M4 12h8", "M4 18V6", "M12 18V6", "m17 12 3-2v8"),
-    Pencil("M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z", "m15 5 4 4"),
+    Pencil("M4 20v-4L15 5l4 4L8 20z", "M12 8l4 4", "M13 20h7"),
     Plus("M5 12h14", "M12 5v14"),
     Minus("M5 12h14"),
     Menu("M4 7h16", "M4 12h16", "M4 17h16"),
@@ -52,7 +52,8 @@ fun Icon(ic: Ic, color: Color, size: Dp = 20.dp, stroke: Float = 2f, modifier: M
     Canvas(modifier.size(size)) {
         val s = this.size.width / 24f
         scale(s, s, Offset.Zero) {
-            val style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            val sharp = ic == Ic.Pencil
+            val style = Stroke(width = stroke, cap = if (sharp) StrokeCap.Butt else StrokeCap.Round, join = if (sharp) StrokeJoin.Miter else StrokeJoin.Round)
             ic.paths.forEach { drawPath(it, color, style = style) }
         }
     }
