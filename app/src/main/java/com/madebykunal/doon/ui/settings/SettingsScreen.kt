@@ -208,10 +208,10 @@ private fun RemindersSection() {
             Prefs.setFullScreenAlerts(on)
             Reminders.resyncAll()
             if (on && !fullScreen) Reminders.openFullScreenSettings()
-            else if (on && !overlay) Reminders.openOverlaySettings()
+            else if (on && !overlay) Reminders.requestOverlay()
         }
         if (Prefs.fullScreenAlerts && !fullScreen) SettingRow("Allow full-screen notifications", "Needed to wake a locked phone", right = { action("Open") }) { Reminders.openFullScreenSettings() }
-        if (Prefs.fullScreenAlerts && !overlay) SettingRow("Allow display over other apps", "Needed to show over the app you’re using", right = { action("Open") }) { Reminders.openOverlaySettings() }
+        if (Prefs.fullScreenAlerts && !overlay) SettingRow("Allow display over other apps", "Needed to show over the app you’re using", right = { action("Open") }) { Reminders.requestOverlay() }
     }
 }
 

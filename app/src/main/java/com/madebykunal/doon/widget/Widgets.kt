@@ -84,15 +84,19 @@ object Widgets {
         }
     }
 
-    private class Palette(val accentLight: Int, val accentDark: Int, val tintLight: Int, val tintDark: Int, val cardLight: Int, val cardDark: Int)
+    private class Palette(val onLight: Int, val onDark: Int, val accentLight: Int, val accentDark: Int, val tintLight: Int, val tintDark: Int, val cardLight: Int, val cardDark: Int)
 
     private fun palette(cardTint: Boolean): Palette {
         val accent = accentHex()
         val cardLight = if (cardTint) ColorMath.mix(CARD_LIGHT, accent, 0.06) else CARD_LIGHT
         val cardDark = if (cardTint) ColorMath.mix(CARD_DARK, accent, 0.08) else CARD_DARK
+        val accentLight = ColorMath.ensureContrast(accent, CARD_LIGHT, 4.5)
+        val accentDark = ColorMath.ensureContrast(accent, CARD_DARK, 4.5)
         return Palette(
-            ColorMath.toArgb(ColorMath.ensureContrast(accent, CARD_LIGHT, 4.5)),
-            ColorMath.toArgb(ColorMath.ensureContrast(accent, CARD_DARK, 4.5)),
+            ColorMath.toArgb(ColorMath.readableOn(accentLight)),
+            ColorMath.toArgb(ColorMath.readableOn(accentDark)),
+            ColorMath.toArgb(accentLight),
+            ColorMath.toArgb(accentDark),
             ColorMath.toArgb(ColorMath.mix(CARD_LIGHT, accent, 0.16)),
             ColorMath.toArgb(ColorMath.mix(CARD_DARK, accent, 0.28)),
             ColorMath.toArgb(cardLight),
@@ -186,7 +190,7 @@ object Widgets {
         v.setOnClickPendingIntent(R.id.root, open(context, "today"))
         v.setOnClickPendingIntent(R.id.add, open(context, "add"))
         v.color(context, R.id.add_bg, "setColorFilter", p.accentLight, p.accentDark)
-        v.color(context, R.id.add_plus, "setTextColor", 0xFFFFFFFF.toInt(), 0xFF17171A.toInt())
+        v.color(context, R.id.add_plus, "setTextColor", p.onLight, p.onDark)
         v.color(context, R.id.label, "setTextColor", p.accentLight, p.accentDark)
         v.setTextViewText(R.id.count, open.size.toString())
         val fit = minOf(MAX_ROWS, maxOf(3, (height - 60) / 36))

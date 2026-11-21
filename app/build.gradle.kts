@@ -15,8 +15,8 @@ android {
         applicationId = "com.madebykunal.doon"
         minSdk = 26
         targetSdk = 37
-        versionCode = 6
-        versionName = "0.6.0"
+        versionCode = 7
+        versionName = "0.6.5"
     }
 
     buildTypes {
@@ -51,6 +51,14 @@ android {
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.outputs.forEach { output ->
+            (output as com.android.build.api.variant.impl.VariantOutputImpl).outputFileName.set(output.versionName.map { "doon-v$it.apk" })
+        }
     }
 }
 

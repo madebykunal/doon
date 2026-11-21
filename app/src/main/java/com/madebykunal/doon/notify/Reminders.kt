@@ -205,6 +205,28 @@ object Reminders {
         runCatching { ctx.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
 
+    fun requestOverlay() {
+        if (Build.VERSION.SDK_INT < 33) {
+            openOverlaySettings()
+            return
+        }
+        Dialogs.show(
+            "Allow display over other apps",
+            "Android blocks this for apps installed outside the Play Store. Open App info, tap ⋮ at the top right and choose Allow restricted settings. Then come back and open the setting.",
+            listOf(
+                DialogAction("App info") { openAppInfo() },
+                DialogAction("Open setting", "primary") { openOverlaySettings() },
+                DialogAction("Not now", "cancel"),
+            ),
+        )
+    }
+
+    private fun openAppInfo() {
+        runCatching {
+            ctx.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${ctx.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+    }
+
     fun openOverlaySettings() {
         runCatching {
             ctx.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${ctx.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

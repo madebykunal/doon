@@ -90,5 +90,10 @@ class LogicTest {
         assertEquals(2, HabitMath.bestStreak(habit, logs, "2026-11-21"))
         assertEquals("#1E9E9A", ColorMath.ensureContrast("#1E9E9A", "#FAF8F5", 3.0))
         assertEquals("#FFFFFF", ColorMath.readableOn("#3B5BDB"))
+        assertEquals("#FFFFFF", ColorMath.readableOn("#E5484D"))
+        assertEquals("#FFFFFF", ColorMath.readableOn("#F2765A"))
+        assertEquals("#FFFFFF", ColorMath.readableOn("#C62F35"))
+        assertEquals("#000000", ColorMath.readableOn("#E9A23B"))
+        assertEquals("#000000", ColorMath.readableOn("#8FD98A"))
     }
 }

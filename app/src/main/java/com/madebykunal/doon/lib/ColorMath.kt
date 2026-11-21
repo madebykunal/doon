@@ -58,8 +58,27 @@ object ColorMath {
         return target
     }
 
+    private fun apcaY(hex: String): Double {
+        val c = rgb(hex)
+        fun ch(v: Int) = (v / 255.0).pow(2.4)
+        val y = 0.2126729 * ch(c[0]) + 0.7151522 * ch(c[1]) + 0.0721750 * ch(c[2])
+        return if (y < 0.022) y + (0.022 - y).pow(1.414) else y
+    }
+
+    fun apca(text: String, bg: String): Double {
+        val t = apcaY(text)
+        val b = apcaY(bg)
+        return if (b > t) {
+            val s = (b.pow(0.56) - t.pow(0.57)) * 1.14
+            if (s < 0.1) 0.0 else (s - 0.027) * 100
+        } else {
+            val s = (b.pow(0.65) - t.pow(0.62)) * 1.14
+            if (s > -0.1) 0.0 else (s + 0.027) * 100
+        }
+    }
+
     fun readableOn(bg: String): String =
-        if (contrast("#FFFFFF", bg) >= contrast("#000000", bg)) "#FFFFFF" else "#000000"
+        if (abs(apca("#FFFFFF", bg)) >= abs(apca("#000000", bg))) "#FFFFFF" else "#000000"
 
     fun hsvToHex(h: Double, s: Double, v: Double): String {
         val chroma = v * s

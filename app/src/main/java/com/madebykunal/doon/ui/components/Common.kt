@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -340,7 +341,7 @@ private fun OdometerColumn(char: Char, style: TextStyle, color: Color, lineHeigh
     val textStyle = style.copy(color = color, fontFeatureSettings = tabular, textAlign = TextAlign.Center)
     Box(Modifier.height(lineHeight).clipToBounds()) {
         BasicText("0", Modifier.alpha(0f), textStyle)
-        Column(Modifier.offset(y = -lineHeight * y.value)) {
+        Column(Modifier.wrapContentHeight(Alignment.Top, unbounded = true).offset(y = -lineHeight * y.value)) {
             for (d in 0..9) BasicText(d.toString(), Modifier.height(lineHeight), textStyle)
         }
     }
