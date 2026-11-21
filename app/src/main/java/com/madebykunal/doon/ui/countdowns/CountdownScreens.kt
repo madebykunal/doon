@@ -61,7 +61,6 @@ import com.madebykunal.doon.ui.components.Ic
 import com.madebykunal.doon.ui.components.Icon
 import com.madebykunal.doon.ui.components.Odometer
 import com.madebykunal.doon.ui.components.ScreenHeader
-import com.madebykunal.doon.ui.components.SearchButton
 import com.madebykunal.doon.ui.components.SettingsButton
 import com.madebykunal.doon.ui.components.Txt
 import com.madebykunal.doon.ui.components.dockInset
@@ -88,7 +87,6 @@ fun CountdownsScreen() {
     val past = data.filter { CountdownMath.isPast(it.dates, today) }.sortedByDescending { it.targetDate }
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Soon") {
-            SearchButton()
             SettingsButton()
         }
         if (upcoming.isEmpty() && past.isEmpty()) {
@@ -201,12 +199,11 @@ fun CountdownDetailScreen(id: String) {
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("", back = true) {
-            HeaderButton(Ic.Pencil, "Edit countdown", 18.dp) { Nav.openSheet(SheetRoute.CountdownEditor(id)) }
             HeaderButton(Ic.Trash, "Delete countdown", 18.dp, remove)
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = GUTTER), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
             Txt(item.emoji, EMOJI_STYLE, unscaled = true)
-            Txt(CountdownMath.titleWithAge(item.dates, item.title, today).uppercase(), Type.display)
+            Txt(CountdownMath.titleWithAge(item.dates, item.title, today).uppercase(), Type.display, modifier = Modifier.tap(label = "Edit countdown") { Nav.openSheet(SheetRoute.CountdownEditor(id)) })
             Txt(CountdownMath.dateLine(item.dates, today) + if (item.targetTime != null && item.kind == "until") " · ${item.targetTime}" else "", Type.secondary, c.inkMuted)
             Spacer(Modifier.height(Space.xl))
             CountRow(display.value, display.unit, display.numeric)

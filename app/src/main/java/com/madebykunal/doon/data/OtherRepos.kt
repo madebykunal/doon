@@ -95,9 +95,6 @@ object CountdownRepo {
 
     fun get(id: String): Countdown? = Db.one("SELECT * FROM countdowns WHERE id = ?", listOf(id), Countdown::from)
 
-    fun search(term: String, limit: Int = 20): List<Countdown> =
-        Db.query("SELECT * FROM countdowns WHERE deleted_at IS NULL AND title LIKE ? ESCAPE '\\' LIMIT $limit", listOf(Db.likeArg(term)), Countdown::from)
-
     fun create(title: String, emoji: String, kind: String, targetDate: DateStr, targetTime: String?, showInWidget: Boolean, notify: List<Int>): String {
         val id = Db.uuid()
         val now = System.currentTimeMillis()

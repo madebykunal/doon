@@ -238,7 +238,7 @@ private fun MoveToSheet(id: String?, fromDate: DateStr?) {
             if (inGroup.isEmpty()) return@forEach
             SectionLabel(group.name)
             inGroup.forEach { list ->
-                OptionRow(list.name, icon = list.emoji?.let { e -> { Txt(e) } }) { go(Home.InList(list.id), list.name) }
+                OptionRow(list.name) { go(Home.InList(list.id), list.name) }
             }
         }
     }
@@ -303,7 +303,7 @@ private fun ListEditorSheet(listId: String?, groupId: String?, mode: String?) {
     }
 
     SheetFrame(if (editing) "Edit $noun" else "New $noun", action = Triple("Save", name.isNotBlank(), save)) {
-        NameRow(emoji, if (isGroup) null else { e -> emoji = e }) {
+        NameRow(null, null) {
             Field(name, { name = it }, if (isGroup) "Folder name" else "List name", Modifier.fillMaxWidth(), autoFocus = !editing, onSubmit = save)
         }
         if (!isGroup && existingList == null && groups.size > 1) {

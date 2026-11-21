@@ -167,13 +167,10 @@ fun HeaderButton(ic: Ic, label: String, size: Dp = 20.dp, onClick: () -> Unit) {
 }
 
 @Composable
-fun SearchButton() = HeaderButton(Ic.Search, "Search") { Nav.push(Route.Search) }
-
-@Composable
 fun SettingsButton() = HeaderButton(Ic.Menu, "Menu", 24.dp) { Nav.push(Route.Settings) }
 
 @Composable
-fun ScreenHeader(title: String, back: Boolean = false, right: @Composable RowScope.() -> Unit = {}) {
+fun ScreenHeader(title: String, back: Boolean = false, onTitle: (() -> Unit)? = null, right: @Composable RowScope.() -> Unit = {}) {
     Row(
         Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(top = Space.s, bottom = Space.m).padding(horizontal = GUTTER),
         verticalAlignment = Alignment.CenterVertically,
@@ -183,7 +180,7 @@ fun ScreenHeader(title: String, back: Boolean = false, right: @Composable RowSco
                 Icon(Ic.ChevronLeft, colors.ink, 24.dp)
             }
         }
-        Txt(title.uppercase(), Type.display, maxLines = 1, modifier = Modifier.weight(1f))
+        Txt(title.uppercase(), Type.display, maxLines = 1, modifier = Modifier.weight(1f).then(if (onTitle != null) Modifier.tap(label = "Edit", onClick = onTitle) else Modifier))
         Row(content = right)
     }
 }

@@ -177,9 +177,9 @@ object Type {
     val caption = style(TextFamily, FontWeight.Normal, 13, 17)
     val captionStrong = style(TextFamily, FontWeight.Medium, 13, 17)
     val micro = style(TextFamily, FontWeight.Medium, 11, 14)
-    val display = style(Condensed, FontWeight.Medium, 25, 30).copy(letterSpacing = 0.2.sp)
+    val display = style(Condensed, FontWeight.Medium, 24, 28).copy(letterSpacing = 0.2.sp)
     val listName = style(Condensed, FontWeight.Medium, 25, 30).copy(letterSpacing = 0.2.sp)
-    val nav = style(Condensed, FontWeight.Medium, 21, 24).copy(letterSpacing = 0.2.sp)
+    val nav = style(Condensed, FontWeight.Medium, 20, 24).copy(letterSpacing = 0.2.sp)
     val heading = style(TextFamily, FontWeight.SemiBold, 14, 20).copy(letterSpacing = 0.8.sp)
     val label = style(TextFamily, FontWeight.SemiBold, 12, 16).copy(letterSpacing = 1.2.sp)
 }

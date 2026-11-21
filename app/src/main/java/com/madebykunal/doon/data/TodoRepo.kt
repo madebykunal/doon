@@ -48,15 +48,6 @@ object TodoRepo {
     fun countOpenOn(date: DateStr): Int =
         Db.one("SELECT count(*) FROM todos WHERE date = ? AND $OPEN", listOf(date)) { it.getInt(0) } ?: 0
 
-    fun search(term: String, limit: Int = 50): List<Todo> {
-        val like = Db.likeArg(term)
-        return Db.query(
-            "SELECT * FROM todos WHERE (text LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\') AND $LIVE ORDER BY date DESC LIMIT $limit",
-            listOf(like, like),
-            Todo::from,
-        )
-    }
-
     private fun firstPosition(home: Home): String? {
         val (where, arg) = inHome(home)
         return Db.one("SELECT position FROM todos WHERE $where AND $LIVE ORDER BY position", listOf(arg)) { it.getString(0) }

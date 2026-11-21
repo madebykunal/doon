@@ -148,7 +148,6 @@ fun App() {
         ) { route ->
             when (route) {
                 Route.Settings -> SettingsScreen()
-                Route.Search -> SearchScreen()
                 else -> Shell(imeVisible)
             }
         }
@@ -235,40 +234,6 @@ private fun Tabs() {
                         2 -> CountdownsScreen()
                         else -> HabitsScreen()
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchScreen() {
-    val c = colors
-    var term by remember { mutableStateOf("") }
-    val query = term.trim()
-    val todos = remember(query) { if (query.isEmpty()) emptyList() else TodoRepo.search(query) }
-    val countdowns = remember(query) { if (query.isEmpty()) emptyList() else CountdownRepo.search(query) }
-    Column(Modifier.fillMaxSize().imePadding()) {
-        ScreenHeader("Search", back = true)
-        Field(term, { term = it }, "To-dos, list items, countdowns", Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(bottom = Space.s), autoFocus = true, imeAction = androidx.compose.ui.text.input.ImeAction.Search)
-        LazyColumn(Modifier.fillMaxSize()) {
-            if (query.isNotEmpty() && todos.isEmpty() && countdowns.isEmpty()) {
-                item { Txt("Nothing matches “$query”.", Type.secondary, c.inkMuted, Modifier.fillMaxWidth().padding(GUTTER), align = androidx.compose.ui.text.style.TextAlign.Center) }
-            }
-            if (countdowns.isNotEmpty()) item { SectionLabel("Countdowns") }
-            items(countdowns, key = { "c" + it.id }) { item ->
-                OptionRow(item.title, icon = { Txt(item.emoji) }) { Nav.open(2, Route.CountdownDetail(item.id)) }
-            }
-            if (todos.isNotEmpty()) item { SectionLabel("To-dos") }
-            items(todos, key = { "t" + it.id }) { todo ->
-                val detail = todo.date?.let { Dates.format(it, "EEE, d MMM yyyy") } ?: todo.listId?.let { ListRepo.get(it)?.name } ?: "List"
-                OptionRow(Markdown.plainText(todo.text), detail) {
-                    val date = todo.date
-                    val listId = todo.listId
-                    if (date != null) {
-                        Ui.selectedDate = date
-                        Nav.open(0)
-                    } else if (listId != null) Nav.open(1, Route.ListDetail(listId))
                 }
             }
         }

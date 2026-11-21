@@ -221,12 +221,11 @@ fun HabitDetailScreen(id: String) {
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("", back = true) {
-            HeaderButton(Ic.Pencil, "Edit habit", 18.dp) { Nav.openSheet(SheetRoute.HabitEditor(id)) }
             HeaderButton(Ic.Trash, "Delete habit", 18.dp, remove)
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = GUTTER), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
             Txt(habit.emoji, EMOJI_STYLE, unscaled = true)
-            Txt(habit.title.uppercase(), Type.display)
+            Txt(habit.title.uppercase(), Type.display, modifier = Modifier.tap(label = "Edit habit") { Nav.openSheet(SheetRoute.HabitEditor(id)) })
             Txt(HabitMath.scheduleLine(s, Prefs.weekStart), Type.secondary, c.inkMuted)
             Spacer(Modifier.height(Space.xl))
             CountRow(streak.toString(), HabitMath.streakUnit(s, streak), true)

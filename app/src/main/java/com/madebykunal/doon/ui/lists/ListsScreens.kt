@@ -47,7 +47,6 @@ import com.madebykunal.doon.ui.components.HeaderButton
 import com.madebykunal.doon.ui.components.Ic
 import com.madebykunal.doon.ui.components.Icon
 import com.madebykunal.doon.ui.components.ScreenHeader
-import com.madebykunal.doon.ui.components.SearchButton
 import com.madebykunal.doon.ui.components.SettingsButton
 import com.madebykunal.doon.ui.components.Txt
 import com.madebykunal.doon.ui.components.dockInset
@@ -72,7 +71,6 @@ fun ListsScreen() {
     val counts = remember(todosV, listsV) { ListRepo.counts() }
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Lists") {
-            SearchButton()
             SettingsButton()
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -89,17 +87,17 @@ private fun GroupSection(group: ListGroup, lists: List<TodoList>, counts: Map<St
     Column(Modifier.fillMaxWidth().background(if (band) c.surface else c.bg).padding(top = Space.l, bottom = Space.m)) {
         Row(Modifier.fillMaxWidth().padding(start = GUTTER, end = Space.s), verticalAlignment = Alignment.CenterVertically) {
             Row(
-                Modifier.weight(1f).heightIn(min = HIT_TARGET).tap(label = if (collapsed) "Expand ${group.name}" else "Collapse ${group.name}") {
+                Modifier.weight(1f).heightIn(min = HIT_TARGET).tap(
+                    label = if (collapsed) "Expand ${group.name}" else "Collapse ${group.name}",
+                    onLongClick = { Nav.openSheet(SheetRoute.ListEditor(groupId = group.id)) },
+                ) {
                     collapsed = !collapsed
                     ListRepo.updateGroup(group.id, "collapsed" to collapsed)
                 },
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Space.xs),
             ) {
-                Txt(group.name.uppercase(), Type.label, c.inkMuted, maxLines = 1)
-                Icon(if (collapsed) Ic.ChevronRight else Ic.ChevronDown, c.inkMuted, 16.dp)
+                Txt(group.name.uppercase() + if (collapsed && lists.isNotEmpty()) "  ·  ${lists.size}" else "", Type.label, c.inkMuted, maxLines = 1)
             }
-            HeaderButton(Ic.Pencil, "Edit folder ${group.name}", 15.dp) { Nav.openSheet(SheetRoute.ListEditor(groupId = group.id)) }
         }
         if (!collapsed) ReorderColumn(lists, counts, if (band) c.surface else c.bg)
     }
@@ -168,7 +166,6 @@ private fun ListRow(list: TodoList, count: Int, bg: androidx.compose.ui.graphics
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.m),
     ) {
-        if (list.emoji != null) Txt(list.emoji, Type.h2, unscaled = true)
         Txt(list.name.uppercase(), Type.listName, maxLines = 1, modifier = Modifier.weight(1f))
         if (count > 0) Txt(count.toString(), Type.secondaryStrong, c.inkMuted, tabularNums = true)
     }
@@ -179,9 +176,7 @@ fun ListDetailScreen(id: String) {
     val version = Live.version(T.LISTS)
     val list = remember(version, id) { ListRepo.get(id) }
     Column(Modifier.fillMaxSize()) {
-        ScreenHeader(if (list == null) "" else listOfNotNull(list.emoji, list.name).joinToString(" "), back = true) {
-            HeaderButton(Ic.Pencil, "Edit list", 18.dp) { Nav.openSheet(SheetRoute.ListEditor(listId = id)) }
-        }
+        ScreenHeader(list?.name ?: "", back = true, onTitle = { Nav.openSheet(SheetRoute.ListEditor(listId = id)) })
         ItemList(Home.InList(id), "Today", TodoActions::moveToToday, "Nothing here yet. Tap anywhere to add.")
     }
 }

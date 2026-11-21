@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
@@ -67,6 +68,8 @@ import com.madebykunal.doon.data.T
 import com.madebykunal.doon.data.TodoRepo
 import com.madebykunal.doon.lib.DateStr
 import com.madebykunal.doon.lib.Dates
+import com.madebykunal.doon.lib.pad2
+import com.madebykunal.doon.state.Prefs
 import com.madebykunal.doon.state.DialogAction
 import com.madebykunal.doon.state.Dialogs
 import com.madebykunal.doon.state.Editor
@@ -77,7 +80,6 @@ import com.madebykunal.doon.state.Ui
 import com.madebykunal.doon.ui.components.DatePicker
 import com.madebykunal.doon.ui.components.Ic
 import com.madebykunal.doon.ui.components.Icon
-import com.madebykunal.doon.ui.components.SearchButton
 import com.madebykunal.doon.ui.components.SettingsButton
 import com.madebykunal.doon.ui.components.Txt
 import com.madebykunal.doon.ui.components.tap
@@ -104,7 +106,6 @@ fun TodayScreen() {
             DayPager()
         }
         TodayPill()
-        CalendarPanel()
     }
 }
 
@@ -161,7 +162,6 @@ private fun DayHeader(date: DateStr) {
                 maxLines = 1,
                 modifier = Modifier.weight(1f).tap(role = null, label = "Day options", onLongClick = openMenu) {},
             )
-            SearchButton()
             SettingsButton()
         }
         Box(Modifier.matchParentSize(), contentAlignment = Alignment.BottomEnd) { ClearedStamp() }
@@ -194,25 +194,92 @@ fun WeekStripBar() {
     LaunchedEffect(first) { SeriesRepo.materialize(Dates.addDays(first, -2), Dates.addDays(first, 7)) }
 
     val density = LocalDensity.current
-    BoxWithConstraints(
-        Modifier.fillMaxWidth().height(80.dp).background(c.accent).pointerInput(Unit) {
+    Column(
+        Modifier.fillMaxWidth().background(c.accent).pointerInput(Unit) {
             var dragged = 0f
             detectVerticalDragGestures(onDragStart = { dragged = 0f }, onDragEnd = {
-                if (dragged < -with(density) { 24.dp.toPx() }) {
+                val threshold = with(density) { 24.dp.toPx() }
+                if (dragged < -threshold && !Ui.calendarOpen) {
                     Editor.commitAll()
                     Ui.calendarOpen = true
-                }
+                } else if (dragged > threshold && Ui.calendarOpen) Ui.calendarOpen = false
             }) { _, amount -> dragged += amount }
-        }.onGloballyPositioned {
-            RowDrag.stripBounds = it.boundsInRoot()
-            RowDrag.stripCellPx = it.size.width / STRIP_CELLS.toFloat()
         },
     ) {
-        val cell = maxWidth / STRIP_CELLS
-        LazyRow(state = state, flingBehavior = fling, modifier = Modifier.fillMaxSize()) {
-            items(PAGES, key = { it }) { i ->
-                val date = dateOf(i)
-                DayCell(date, cell, date == selected, date == today, date == RowDrag.dropDay)
+        BoxWithConstraints(
+            Modifier.fillMaxWidth().height(80.dp).onGloballyPositioned {
+                RowDrag.stripBounds = it.boundsInRoot()
+                RowDrag.stripCellPx = it.size.width / STRIP_CELLS.toFloat()
+            },
+        ) {
+            val cell = maxWidth / STRIP_CELLS
+            LazyRow(state = state, flingBehavior = fling, modifier = Modifier.fillMaxSize()) {
+                items(PAGES, key = { it }) { i ->
+                    val date = dateOf(i)
+                    DayCell(date, cell, date == selected, date == today, date == RowDrag.dropDay)
+                }
+            }
+        }
+        AnimatedVisibility(Ui.calendarOpen, enter = expandVertically(tween(200), Alignment.Top), exit = shrinkVertically(tween(180), Alignment.Top)) {
+            StripCalendar(selected, today)
+        }
+    }
+}
+
+@Composable
+private fun StripCalendar(selected: DateStr, today: DateStr) {
+    val c = colors
+    val ink = c.onAccent
+    var shown by remember { mutableStateOf(Dates.makeDate(Dates.year(selected), Dates.month(selected), 1)) }
+    val density = LocalDensity.current
+    val cells = Dates.monthGrid(Dates.year(shown), Dates.month(shown), Prefs.weekStart)
+    val month = Dates.month(shown)
+    val rows = (0 until 6).map { cells.subList(it * 7, it * 7 + 7) }.filter { row -> row.any { Dates.month(it) == month } }
+    LaunchedEffect(shown) { SeriesRepo.materialize(shown, Dates.addDays(shown, 41)) }
+    Column(
+        Modifier.fillMaxWidth().pointerInput(Unit) {
+            var dragged = 0f
+            detectHorizontalDragGestures(onDragStart = { dragged = 0f }, onDragEnd = {
+                if (abs(dragged) > with(density) { 40.dp.toPx() }) shown = Dates.addMonths(shown, if (dragged < 0) 1 else -1)
+            }) { change, amount ->
+                change.consume()
+                dragged += amount
+            }
+        }.padding(horizontal = Space.s).padding(top = Space.s, bottom = Space.l),
+    ) {
+        Txt(Dates.format(shown, "MMMM yyyy"), Type.secondaryStrong.copy(fontWeight = FontWeight.SemiBold), ink, Modifier.padding(start = Space.s, bottom = Space.l))
+        Row {
+            Dates.weekDays(cells[0]).forEach {
+                Box(Modifier.weight(1f).height(28.dp), contentAlignment = Alignment.Center) {
+                    Txt(Dates.format(it, "EEEEE"), Type.caption, ink.copy(alpha = 0.85f))
+                }
+            }
+        }
+        rows.forEach { row ->
+            Row {
+                row.forEach { date ->
+                    Box(Modifier.weight(1f).height(46.dp), contentAlignment = Alignment.Center) {
+                        if (Dates.month(date) == month) {
+                            val isSelected = date == selected
+                            Box(
+                                Modifier.size(38.dp).background(if (isSelected) ink else Color.Transparent, CircleShape).tap(label = Dates.format(date, "EEEE d MMMM")) {
+                                    Ui.selectedDate = date
+                                    Ui.calendarOpen = false
+                                },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Txt(
+                                    pad2(Dates.day(date)),
+                                    Type.secondaryStrong.copy(fontWeight = FontWeight.SemiBold),
+                                    if (isSelected) c.accent else ink,
+                                    tabularNums = true,
+                                    unscaled = true,
+                                )
+                                if (date == today && !isSelected) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 3.dp).size(4.dp).background(ink, CircleShape))
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -226,52 +293,10 @@ private fun DayCell(date: DateStr, width: Dp, isSelected: Boolean, isToday: Bool
         if (isSelected) Box(Modifier.size(54.dp).background(ink.copy(alpha = 0.18f), CircleShape))
         if (isDrop) Box(Modifier.size(54.dp).border(2.dp, ink, CircleShape))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Txt(Dates.format(date, "dd/MM"), Type.micro.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), ink, unscaled = true, tabularNums = true)
-            Txt(Dates.format(date, "EEE").uppercase(), Type.nav.copy(fontSize = 23.sp, lineHeight = 26.sp), ink, unscaled = true)
+            Txt(Dates.format(date, "dd/MM"), Type.micro.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold), ink, unscaled = true, tabularNums = true)
+            Txt(Dates.format(date, "EEE").uppercase(), Type.nav.copy(fontSize = 22.sp, lineHeight = 25.sp), ink, unscaled = true)
         }
         if (isToday && !isSelected) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp).size(4.dp).background(ink, CircleShape))
-    }
-}
-
-@Composable
-private fun CalendarPanel() {
-    val c = colors
-    val open = Ui.calendarOpen
-    AnimatedVisibility(open, enter = fadeIn(tween(150)), exit = fadeOut(tween(150))) {
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)).tap(role = null, label = "Close calendar") { Ui.calendarOpen = false })
-    }
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-        AnimatedVisibility(open, enter = expandVertically(tween(180), Alignment.Bottom) + fadeIn(tween(120)), exit = shrinkVertically(tween(150), Alignment.Bottom) + fadeOut(tween(150))) {
-            var firstShown by remember { mutableStateOf(Dates.makeDate(Dates.year(Ui.selectedDate), Dates.month(Ui.selectedDate), 1)) }
-            LaunchedEffect(firstShown) { SeriesRepo.materialize(Dates.addDays(firstShown, -7), Dates.addDays(firstShown, 42)) }
-            val version = Live.version(T.TODOS)
-            val openDates = remember(version, firstShown) { TodoRepo.openDates(Dates.addDays(firstShown, -7), Dates.addDays(firstShown, 42)) }
-            var dragged by remember { mutableIntStateOf(0) }
-            Column(
-                Modifier.fillMaxWidth().background(c.surface)
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures(
-                            onDragStart = { dragged = 0 },
-                            onDragEnd = { if (dragged > 24 * density) Ui.calendarOpen = false },
-                        ) { _, amount -> dragged += amount.toInt() }
-                    }
-                    .padding(top = Space.s, bottom = Space.m),
-            ) {
-                Box(Modifier.fillMaxWidth().padding(bottom = Space.s), contentAlignment = Alignment.Center) {
-                    Box(Modifier.size(36.dp, 4.dp).background(c.inkMuted.copy(alpha = 0.35f), CircleShape))
-                }
-                DatePicker(
-                    value = Ui.selectedDate,
-                    onChange = {
-                        Ui.selectedDate = it
-                        Ui.calendarOpen = false
-                    },
-                    openDates = openDates,
-                    onMonthShown = { firstShown = it },
-                    showToday = true,
-                )
-            }
-        }
     }
 }
 

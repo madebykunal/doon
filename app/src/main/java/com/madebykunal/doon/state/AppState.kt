@@ -33,7 +33,6 @@ sealed interface Route {
     data class CountdownDetail(val id: String) : Route
     data class HabitDetail(val id: String) : Route
     data object Settings : Route
-    data object Search : Route
 }
 
 sealed interface SheetRoute {
@@ -63,7 +62,7 @@ object Nav {
 
     fun push(route: Route) {
         when (route) {
-            Route.Settings, Route.Search -> overlay.add(route)
+            Route.Settings -> overlay.add(route)
             is Route.ListDetail -> stacks[tab].add(route)
             is Route.CountdownDetail -> stacks[tab].add(route)
             is Route.HabitDetail -> stacks[tab].add(route)
