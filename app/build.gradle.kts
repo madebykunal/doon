@@ -7,6 +7,12 @@ plugins {
 
 val keystoreFile = rootProject.file("keystore.properties")
 val keystore = Properties().apply { if (keystoreFile.exists()) keystoreFile.inputStream().use(::load) }
+fun keystoreSecret(name: String): String? = keystore.getProperty(name) ?: keystore.getProperty("keychainService")?.let { service ->
+    providers.exec {
+        commandLine("security", "find-generic-password", "-s", service, "-w")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.get().trim().ifEmpty { null }
+}
 
 android {
     namespace = "com.madebykunal.doon"
@@ -28,9 +34,9 @@ android {
         if (keystoreFile.exists()) {
             create("release") {
                 storeFile = file(keystore.getProperty("storeFile"))
-                storePassword = keystore.getProperty("storePassword")
+                storePassword = keystoreSecret("storePassword")
                 keyAlias = keystore.getProperty("keyAlias")
-                keyPassword = keystore.getProperty("keyPassword")
+                keyPassword = keystoreSecret("keyPassword")
             }
         }
     }
