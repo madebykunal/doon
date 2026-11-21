@@ -1,5 +1,6 @@
 package com.madebykunal.doon.ui.sheets
 
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -13,8 +14,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -143,7 +142,7 @@ private fun TodoDetailsSheet(id: String) {
     }
     val place = live.date?.let { Dates.format(it, "EEE d MMM") } ?: live.listId?.let { ListRepo.get(it)?.name } ?: "List"
 
-    SheetFrame("To-do", tall = true, action = Triple("Save", text.isNotBlank() && !inPast, save)) {
+    SheetFrame("To-do", expandable = true, action = Triple("Save", text.isNotBlank() && !inPast, save)) {
         Column(Modifier.padding(horizontal = GUTTER).padding(bottom = Space.m), verticalArrangement = Arrangement.spacedBy(Space.s)) {
             Field(text, { text = it }, "To-do", Modifier.fillMaxWidth(), Type.body.copy(fontWeight = FontWeight.SemiBold), singleLine = false)
             Field(description, { description = it }, "Description", Modifier.fillMaxWidth(), singleLine = false, minHeight = 96.dp, maxLength = 2000)
@@ -205,13 +204,13 @@ private fun HighlightRow(value: String?, onChange: (String?) -> Unit) {
         Txt("Highlight", modifier = Modifier.weight(1f))
         highlightIds.forEach { id ->
             Box(Modifier.size(HIT_TARGET - 4.dp, HIT_TARGET).tap(label = "Highlight $id") { onChange(id) }, contentAlignment = Alignment.Center) {
-                var m = Modifier.size(24.dp).clip(CircleShape).background(c.highlightBar(id))
-                if (value == id) m = m.border(2.dp, c.ink, CircleShape)
+                var m = Modifier.size(24.dp).clip(RectangleShape).background(c.highlightBar(id))
+                if (value == id) m = m.border(2.dp, c.ink, RectangleShape)
                 Box(m)
             }
         }
         Box(Modifier.size(HIT_TARGET - 4.dp, HIT_TARGET).tap(label = "No highlight") { onChange(null) }, contentAlignment = Alignment.Center) {
-            Box(Modifier.size(24.dp).border(1.5.dp, if (value == null) c.ink else c.hairline, CircleShape), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(24.dp).border(1.5.dp, if (value == null) c.ink else c.hairline, RectangleShape), contentAlignment = Alignment.Center) {
                 Icon(Ic.X, c.inkMuted, 12.dp)
             }
         }
@@ -251,7 +250,7 @@ private fun NameRow(emoji: String?, onEmoji: ((String) -> Unit)?, content: @Comp
     Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER, vertical = Space.s), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
         if (onEmoji != null) {
             Box(
-                Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(c.accentTint).tap(label = "Change emoji") { Nav.openSheet(SheetRoute.Emoji(onEmoji)) },
+                Modifier.size(48.dp).clip(RectangleShape).background(c.accentTint).tap(label = "Change emoji") { Nav.openSheet(SheetRoute.Emoji(onEmoji)) },
                 contentAlignment = Alignment.Center,
             ) { Txt(emoji ?: "＋", Type.h2, unscaled = true) }
         }
@@ -271,7 +270,7 @@ private fun ListEditorSheet(listId: String?, groupId: String?, mode: String?) {
     var chosenGroup by remember { mutableStateOf(existingList?.groupId ?: if (mode == "list") groupId else null) }
     val targetGroup = chosenGroup ?: groups.firstOrNull()?.id
     val editing = existingList != null || existingGroup != null
-    val noun = if (isGroup) "group" else "list"
+    val noun = if (isGroup) "folder" else "list"
 
     val save = save@{
         val trimmed = name.trim()
@@ -305,10 +304,10 @@ private fun ListEditorSheet(listId: String?, groupId: String?, mode: String?) {
 
     SheetFrame(if (editing) "Edit $noun" else "New $noun", action = Triple("Save", name.isNotBlank(), save)) {
         NameRow(emoji, if (isGroup) null else { e -> emoji = e }) {
-            Field(name, { name = it }, if (isGroup) "Group name" else "List name", Modifier.fillMaxWidth(), autoFocus = !editing, onSubmit = save)
+            Field(name, { name = it }, if (isGroup) "Folder name" else "List name", Modifier.fillMaxWidth(), autoFocus = !editing, onSubmit = save)
         }
         if (!isGroup && existingList == null && groups.size > 1) {
-            SectionLabel("Group")
+            SectionLabel("Folder")
             groups.forEach { g -> OptionRow(g.name, selected = g.id == targetGroup) { chosenGroup = g.id } }
         }
         if (editing) OptionRow("Delete $noun", destructive = true, onClick = remove)
@@ -367,7 +366,7 @@ private fun CountdownEditorSheet(id: String?) {
             if (kind == "until" && it < today) kind = "yearly"
         })
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.s, bottom = Space.xs).clip(RoundedCornerShape(12.dp)).background(c.accentTint)
+            Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.s, bottom = Space.xs).clip(RectangleShape).background(c.accentTint)
                 .padding(horizontal = Space.m, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Space.m),
@@ -430,8 +429,8 @@ private fun HabitEditorSheet(id: String?) {
                 (0 until 7).map { (Prefs.weekStart + it) % 7 }.forEach { weekday ->
                     val on = days and (1 shl weekday) != 0
                     val name = Dates.format(Dates.addDays("2026-11-01", weekday), "EEEE")
-                    var m = Modifier.size(40.dp).clip(CircleShape)
-                    m = if (on) m.background(c.accent) else m.border(1.dp, c.hairline, CircleShape)
+                    var m = Modifier.size(40.dp).clip(RectangleShape)
+                    m = if (on) m.background(c.accent) else m.border(1.dp, c.hairline, RectangleShape)
                     Box(
                         m.tap(label = name) {
                             val next = days xor (1 shl weekday)
@@ -459,7 +458,7 @@ private fun HabitEditorSheet(id: String?) {
 private fun StepButton(ic: Ic, label: String, enabled: Boolean, onClick: () -> Unit) {
     val c = colors
     Box(
-        Modifier.size(HIT_TARGET - 4.dp).alpha(if (enabled) 1f else 0.4f).clip(CircleShape).background(c.accentTint).tap(enabled = enabled, label = label, onClick = onClick),
+        Modifier.size(HIT_TARGET - 4.dp).alpha(if (enabled) 1f else 0.4f).clip(RectangleShape).background(c.accentTint).tap(enabled = enabled, label = label, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(ic, c.accentText, 18.dp, stroke = 2.25f) }
 }

@@ -2,7 +2,6 @@ package com.madebykunal.doon.ui.today
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -10,31 +9,32 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.isImeVisible
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,10 +46,10 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
@@ -57,6 +57,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.madebykunal.doon.data.Home
 import com.madebykunal.doon.data.Live
 import com.madebykunal.doon.data.SeriesRepo
@@ -68,23 +69,17 @@ import com.madebykunal.doon.state.DialogAction
 import com.madebykunal.doon.state.Dialogs
 import com.madebykunal.doon.state.Editor
 import com.madebykunal.doon.state.Nav
-import com.madebykunal.doon.state.Prefs
 import com.madebykunal.doon.state.SheetRoute
 import com.madebykunal.doon.state.TodoActions
 import com.madebykunal.doon.state.Ui
 import com.madebykunal.doon.ui.components.DatePicker
 import com.madebykunal.doon.ui.components.Ic
 import com.madebykunal.doon.ui.components.Icon
-import com.madebykunal.doon.ui.components.Odometer
 import com.madebykunal.doon.ui.components.SearchButton
 import com.madebykunal.doon.ui.components.SettingsButton
 import com.madebykunal.doon.ui.components.Txt
-import com.madebykunal.doon.ui.components.dockInset
-import com.madebykunal.doon.ui.components.hairlineBottom
-import com.madebykunal.doon.ui.components.hairlineTop
 import com.madebykunal.doon.ui.components.tap
 import com.madebykunal.doon.ui.theme.GUTTER
-import com.madebykunal.doon.ui.theme.RADIUS_DOCK
 import com.madebykunal.doon.ui.theme.Space
 import com.madebykunal.doon.ui.theme.Type
 import com.madebykunal.doon.ui.theme.colors
@@ -96,7 +91,8 @@ import kotlin.math.abs
 
 private const val PAGES = 200_000
 private const val CENTER = PAGES / 2
-private val DATE_ROW = 60.dp
+private val HEADER = 64.dp
+private const val STRIP_CELLS = 5
 
 @Composable
 fun TodayScreen() {
@@ -107,12 +103,12 @@ fun TodayScreen() {
             DayPager()
         }
         TodayPill()
-        CalendarPanel(statusTop + Space.s + DATE_ROW + Space.xs)
+        CalendarPanel(statusTop + HEADER)
     }
 }
 
 @Composable
-private fun androidx.compose.foundation.layout.ColumnScope.DayPager() {
+private fun ColumnScope.DayPager() {
     val anchor = remember { Dates.dayNumber(Ui.selectedDate) }
     fun dateOf(page: Int) = Dates.fromDayNumber(anchor + (page - CENTER))
     fun pageOf(date: DateStr) = CENTER + (Dates.dayNumber(date) - anchor).toInt()
@@ -158,122 +154,88 @@ private fun DayHeader(date: DateStr) {
             ),
         )
     }
-    Box(Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(top = Space.s)) {
-        Column {
-            Row(Modifier.fillMaxWidth().height(DATE_ROW).padding(horizontal = GUTTER), verticalAlignment = Alignment.CenterVertically) {
-                Row(
-                    Modifier.weight(1f).tap(label = if (Ui.calendarOpen) "Close calendar" else "Open calendar", onLongClick = openMenu) {
-                        Editor.commitAll()
-                        Ui.calendarOpen = !Ui.calendarOpen
-                    },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Space.m),
-                ) {
-                    Odometer(Dates.format(date, "dd"), Type.numeral)
-                    Column {
-                        Txt(Dates.format(date, "EEEE"), Type.h2, maxLines = 1)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.xs)) {
-                            Txt(Dates.format(date, "MMMM yyyy"), Type.secondary, c.inkMuted, maxLines = 1)
-                            Icon(Ic.ChevronDown, c.inkMuted, 14.dp, modifier = Modifier.rotate(chevron))
-                        }
-                    }
-                }
-                SearchButton()
-                SettingsButton()
+    Box(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)) {
+        Row(Modifier.fillMaxWidth().height(HEADER).padding(start = GUTTER, end = Space.s), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.weight(1f).tap(label = if (Ui.calendarOpen) "Close calendar" else "Open calendar", onLongClick = openMenu) {
+                    Editor.commitAll()
+                    Ui.calendarOpen = !Ui.calendarOpen
+                },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Txt(Dates.format(date, "EEEE, d MMMM").uppercase(), Type.display, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
+                Icon(Ic.ChevronDown, c.inkMuted, 18.dp, modifier = Modifier.rotate(chevron))
             }
-            Spacer(Modifier.height(Space.xs))
-            if (Prefs.weekStrip) TopWeekStrip(date)
+            SearchButton()
+            SettingsButton()
         }
         Box(Modifier.matchParentSize(), contentAlignment = Alignment.BottomEnd) { ClearedStamp() }
     }
 }
 
 @Composable
-private fun TopWeekStrip(selected: DateStr) {
+fun WeekStripBar() {
     val c = colors
-    val band = Prefs.weekBand
-    var m = Modifier.fillMaxWidth()
-    if (band) m = m.background(c.accentWash).hairlineTop(c.hairline).hairlineBottom(c.hairline)
-    Box(m.padding(horizontal = Space.m, vertical = 6.dp)) { WeekStrip(selected) }
-}
-
-@Composable
-private fun WeekStrip(selected: DateStr) {
-    val c = colors
-    val weekStartsOn = Prefs.weekStart
-    val baseStart = remember(weekStartsOn) { Dates.startOfWeek(Ui.today, weekStartsOn) }
-    fun startOf(page: Int) = Dates.addDays(baseStart, (page - CENTER) * 7)
-    fun pageOf(date: DateStr) = CENTER + Math.floorDiv(Dates.diffDays(baseStart, date), 7)
-    val pager = rememberPagerState(initialPage = pageOf(selected)) { PAGES }
-    var visibleStart by remember { mutableStateOf(startOf(pager.currentPage)) }
-
-    LaunchedEffect(selected, weekStartsOn) {
-        val target = pageOf(selected)
-        if (pager.currentPage != target) {
-            if (abs(pager.currentPage - target) > 2) pager.scrollToPage(target) else pager.animateScrollToPage(target)
-        }
-    }
-    LaunchedEffect(pager) {
-        snapshotFlow { pager.currentPage }.collect {
-            visibleStart = startOf(it)
-            RowDrag.visibleWeekStart = visibleStart
-        }
-    }
-    LaunchedEffect(visibleStart) { SeriesRepo.materialize(Dates.addDays(visibleStart, -7), Dates.addDays(visibleStart, 13)) }
-    val version = Live.version(T.TODOS)
-    val openDates = remember(version, visibleStart) { TodoRepo.openDates(Dates.addDays(visibleStart, -7), Dates.addDays(visibleStart, 13)) }
-
-    HorizontalPager(
-        state = pager,
-        modifier = Modifier.fillMaxWidth().height(62.dp).onGloballyPositioned { RowDrag.stripBounds = it.boundsInRoot() },
-        key = { it },
-        beyondViewportPageCount = 0,
-    ) { page ->
-        val start = startOf(page)
-        WeekRow(Dates.weekDays(start), selected, openDates, c.accent)
-    }
-}
-
-@Composable
-private fun WeekRow(days: List<DateStr>, selected: DateStr, openDates: Set<String>, accent: Color) {
-    val c = colors
+    val selected = Ui.selectedDate
     val today = Ui.today
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val cell = maxWidth / 7
-        val inset = (cell - 34.dp) / 2
-        val index = days.indexOf(selected)
-        if (index >= 0) {
-            val x by animateDpAsState(cell * index + inset, tween(130), label = "pill")
-            Box(Modifier.offset(x = x, y = 18.dp).size(34.dp).clip(CircleShape).background(accent))
+    val base = remember { Dates.dayNumber(today) }
+    fun dateOf(i: Int) = Dates.fromDayNumber(base + (i - CENTER))
+    fun indexOf(date: DateStr) = CENTER + (Dates.dayNumber(date) - base).toInt()
+    val state = rememberLazyListState(initialFirstVisibleItemIndex = indexOf(selected) - 2)
+    val fling = rememberSnapFlingBehavior(state)
+
+    LaunchedEffect(selected) {
+        val target = indexOf(selected) - 2
+        if (abs(state.firstVisibleItemIndex - target) > 10) state.scrollToItem(target) else state.animateScrollToItem(target)
+    }
+    var first by remember { mutableStateOf(dateOf(state.firstVisibleItemIndex)) }
+    LaunchedEffect(state) {
+        snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }.collect { (index, offset) ->
+            first = dateOf(index)
+            RowDrag.stripFirstDay = first
+            RowDrag.stripOffsetPx = offset.toFloat()
         }
-        val drop = RowDrag.dropDay?.let { days.indexOf(it) } ?: -1
-        if (drop >= 0) {
-            Box(Modifier.offset(x = cell * drop + inset, y = 18.dp).size(34.dp).graphicsLayer { scaleX = 1.15f; scaleY = 1.15f }.border(2.dp, c.accent, CircleShape))
-        }
-        Row(Modifier.fillMaxSize()) {
-            days.forEach { date ->
-                val isSelected = date == selected
-                val isToday = date == today
-                val lit = isSelected || isToday
-                Column(Modifier.width(cell).fillMaxSize().tap { Ui.selectedDate = date }, horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.height(16.dp), contentAlignment = Alignment.Center) {
-                        Txt(Dates.format(date, "EEEEE"), Type.micro, if (lit) c.accentText else c.inkMuted)
-                    }
-                    Spacer(Modifier.height(2.dp))
-                    Box(
-                        Modifier.size(34.dp).clip(CircleShape).background(if (isToday && !isSelected) c.accentTint else Color.Transparent),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Txt(
-                            Dates.day(date).toString(),
-                            if (lit) Type.secondaryStrong else Type.secondary,
-                            if (isSelected) c.onAccent else if (isToday) c.accentText else c.ink,
-                            tabularNums = true,
-                        )
-                    }
-                    Box(Modifier.padding(top = 3.dp).size(4.dp).alpha(if (date in openDates) 0.7f else 0f).clip(CircleShape).background(if (isSelected) c.accent else c.inkMuted))
-                }
+    }
+    val windowStart = Dates.addDays(first, -7)
+    val windowEnd = Dates.addDays(first, 14)
+    LaunchedEffect(windowStart) { SeriesRepo.materialize(windowStart, windowEnd) }
+    val version = Live.version(T.TODOS)
+    val openDates = remember(version, windowStart) { TodoRepo.openDates(windowStart, windowEnd) }
+
+    BoxWithConstraints(
+        Modifier.fillMaxWidth().height(76.dp).background(c.accent).onGloballyPositioned {
+            RowDrag.stripBounds = it.boundsInRoot()
+            RowDrag.stripCellPx = it.size.width / STRIP_CELLS.toFloat()
+        },
+    ) {
+        val cell = maxWidth / STRIP_CELLS
+        LazyRow(state = state, flingBehavior = fling, modifier = Modifier.fillMaxSize()) {
+            items(PAGES, key = { it }) { i ->
+                val date = dateOf(i)
+                DayCell(date, cell, date == selected, date == today, date in openDates, date == RowDrag.dropDay)
             }
+        }
+    }
+}
+
+@Composable
+private fun DayCell(date: DateStr, width: Dp, isSelected: Boolean, isToday: Boolean, hasOpen: Boolean, isDrop: Boolean) {
+    val c = colors
+    val ink = c.onAccent
+    var m = Modifier.width(width).fillMaxHeight().padding(horizontal = 4.dp, vertical = 6.dp)
+    if (isSelected) m = m.background(ink.copy(alpha = 0.18f))
+    if (isDrop) m = m.border(2.dp, ink, RectangleShape)
+    Column(
+        m.tap(label = Dates.format(date, "EEEE d MMMM")) { Ui.selectedDate = date },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Txt(Dates.format(date, "dd/MM"), Type.micro.copy(fontSize = 11.sp), ink.copy(alpha = 0.8f), unscaled = true, tabularNums = true)
+        Txt(Dates.format(date, "EEE").uppercase(), Type.nav.copy(fontSize = 22.sp, lineHeight = 26.sp), ink, unscaled = true)
+        Row(Modifier.padding(top = 3.dp).height(3.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            if (isToday) Box(Modifier.size(14.dp, 3.dp).background(ink))
+            if (hasOpen && !isToday) Box(Modifier.size(3.dp).background(ink.copy(alpha = 0.7f)))
         }
     }
 }
@@ -283,7 +245,7 @@ private fun CalendarPanel(top: Dp) {
     val c = colors
     val open = Ui.calendarOpen
     AnimatedVisibility(open, enter = fadeIn(tween(130)), exit = fadeOut(tween(130))) {
-        Box(Modifier.fillMaxSize().padding(top = top).background(Color.Black.copy(alpha = 0.32f)).tap(role = null, label = "Close calendar") { Ui.calendarOpen = false })
+        Box(Modifier.fillMaxSize().padding(top = top).background(Color.Black.copy(alpha = 0.4f)).tap(role = null, label = "Close calendar") { Ui.calendarOpen = false })
     }
     Box(Modifier.fillMaxWidth().padding(top = top)) {
         AnimatedVisibility(open, enter = expandVertically(tween(130), Alignment.Top) + fadeIn(tween(90)), exit = shrinkVertically(tween(130), Alignment.Top) + fadeOut(tween(130))) {
@@ -293,14 +255,14 @@ private fun CalendarPanel(top: Dp) {
             val openDates = remember(version, firstShown) { TodoRepo.openDates(Dates.addDays(firstShown, -7), Dates.addDays(firstShown, 42)) }
             var dragged by remember { mutableIntStateOf(0) }
             Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = RADIUS_DOCK + Space.xs, bottomEnd = RADIUS_DOCK + Space.xs)).background(c.bg)
+                Modifier.fillMaxWidth().background(c.surface)
                     .pointerInput(Unit) {
                         detectVerticalDragGestures(
                             onDragStart = { dragged = 0 },
                             onDragEnd = { if (dragged < -24 * density) Ui.calendarOpen = false },
                         ) { _, amount -> dragged += amount.toInt() }
                     }
-                    .padding(top = Space.xs, bottom = Space.s),
+                    .padding(top = Space.xs, bottom = Space.m),
             ) {
                 DatePicker(
                     value = Ui.selectedDate,
@@ -312,9 +274,6 @@ private fun CalendarPanel(top: Dp) {
                     onMonthShown = { firstShown = it },
                     showToday = true,
                 )
-                Box(Modifier.fillMaxWidth().padding(top = Space.xs), contentAlignment = Alignment.Center) {
-                    Box(Modifier.size(36.dp, 4.dp).alpha(0.35f).clip(CircleShape).background(c.inkMuted))
-                }
             }
         }
     }
@@ -325,15 +284,14 @@ private fun CalendarPanel(top: Dp) {
 private fun TodayPill() {
     val c = colors
     val away = Ui.selectedDate != Ui.today && !Ui.calendarOpen && !WindowInsets.isImeVisible
-    val bottom = dockInset() - Space.s
-    Box(Modifier.fillMaxSize().padding(bottom = bottom), contentAlignment = Alignment.BottomCenter) {
+    Box(Modifier.fillMaxSize().padding(bottom = Space.xl + 10.dp), contentAlignment = Alignment.BottomCenter) {
         AnimatedVisibility(away, enter = fadeIn(tween(110)), exit = fadeOut(tween(110))) {
             Box(
-                Modifier.shadow(3.dp, CircleShape).clip(CircleShape).background(c.surface).border(1.dp, c.hairline, CircleShape)
+                Modifier.shadow(3.dp, RectangleShape).background(c.surface).border(1.dp, c.hairline, RectangleShape)
                     .tap(pressedAlpha = 0.7f, label = "Jump to today") { Ui.selectedDate = Ui.today }
                     .padding(horizontal = Space.l, vertical = Space.s),
             ) {
-                Txt("Today", Type.captionStrong, c.accentText)
+                Txt("TODAY", Type.label, c.accentText)
             }
         }
     }
@@ -357,13 +315,13 @@ private fun ClearedStamp() {
     }
     if (alpha.value == 0f) return
     Box(
-        Modifier.padding(end = Space.xxl, bottom = Space.m).graphicsLayer {
+        Modifier.padding(end = Space.xxl).graphicsLayer {
             this.alpha = alpha.value
             rotationZ = -8f
             scaleX = scale.value
             scaleY = scale.value
-        }.border(2.5.dp, c.accentText, RoundedCornerShape(RADIUS_DOCK / 3)).padding(horizontal = Space.m, vertical = Space.xs),
+        }.border(2.5.dp, c.accentText, RectangleShape).padding(horizontal = Space.m, vertical = Space.xs),
     ) {
-        Txt("Cleared ✓", Type.h2, c.accentText)
+        Txt("CLEARED ✓", Type.nav, c.accentText)
     }
 }

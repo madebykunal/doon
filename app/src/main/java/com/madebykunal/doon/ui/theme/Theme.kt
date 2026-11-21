@@ -87,6 +87,8 @@ data class DoonColors(
     val accentWash: Color,
     val accentText: Color,
     val onAccent: Color,
+    val accentDeep: Color,
+    val onAccentDeep: Color,
     val danger: Color,
     val dangerText: Color,
     val onDanger: Color,
@@ -131,6 +133,8 @@ fun buildColors(kind: String, accentHex: String): DoonColors {
         accentWash = hex(ColorMath.mix(base.bg, accent, if (light) 0.05 else 0.08)),
         accentText = hex(ColorMath.ensureContrast(ColorMath.ensureContrast(accent, base.bg, 4.5), base.surface, 4.5)),
         onAccent = hex(ColorMath.readableOn(accent)),
+        accentDeep = hex(ColorMath.mix(accent, "#000000", if (light) 0.32 else 0.45)),
+        onAccentDeep = hex(ColorMath.readableOn(ColorMath.mix(accent, "#000000", if (light) 0.32 else 0.45))),
         danger = hex(danger),
         dangerText = hex(ColorMath.ensureContrast(ColorMath.ensureContrast(danger, base.bg, 4.5), base.surface, 4.5)),
         onDanger = Color.White,
@@ -171,6 +175,10 @@ object Type {
     val caption = style(TextFamily, FontWeight.Normal, 13, 17)
     val captionStrong = style(TextFamily, FontWeight.Medium, 13, 17)
     val micro = style(TextFamily, FontWeight.Medium, 11, 14)
+    val display = style(Display, FontWeight.Bold, 28, 32).copy(letterSpacing = (-0.3).sp)
+    val listName = style(Display, FontWeight.Bold, 26, 32).copy(letterSpacing = (-0.3).sp)
+    val nav = style(Display, FontWeight.Bold, 17, 22).copy(letterSpacing = 0.4.sp)
+    val label = style(TextFamily, FontWeight.SemiBold, 12, 16).copy(letterSpacing = 1.2.sp)
 }
 
 const val MAX_FONT_SCALE = 1.3f

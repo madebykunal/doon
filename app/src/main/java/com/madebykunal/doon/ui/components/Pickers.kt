@@ -1,5 +1,6 @@
 package com.madebykunal.doon.ui.components
 
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -110,7 +110,7 @@ fun DatePicker(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Box(
-                                    Modifier.clip(CircleShape).background(if (selected) c.accent else androidx.compose.ui.graphics.Color.Transparent)
+                                    Modifier.clip(RectangleShape).background(if (selected) c.accent else androidx.compose.ui.graphics.Color.Transparent)
                                         .padding(horizontal = Space.m, vertical = Space.s),
                                 ) {
                                     Txt(year.toString(), Type.secondaryStrong, if (selected) c.onAccent else c.ink, tabularNums = true)
@@ -178,7 +178,7 @@ fun MonthGrid(year: Int, month: Int, selected: DateStr?, today: DateStr, weekSta
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Box(
-                                Modifier.size(36.dp).clip(CircleShape).background(
+                                Modifier.size(36.dp).clip(RectangleShape).background(
                                     if (isSelected) c.accent else if (isToday) c.accentTint else androidx.compose.ui.graphics.Color.Transparent,
                                 ),
                                 contentAlignment = Alignment.Center,
@@ -190,7 +190,7 @@ fun MonthGrid(year: Int, month: Int, selected: DateStr?, today: DateStr, weekSta
                                     tabularNums = true,
                                 )
                             }
-                            Box(Modifier.padding(top = 2.dp).size(4.dp).alpha(if (date in openDates) 0.7f else 0f).clip(CircleShape).background(c.inkMuted))
+                            Box(Modifier.padding(top = 2.dp).size(4.dp).alpha(if (date in openDates) 0.7f else 0f).clip(RectangleShape).background(c.inkMuted))
                         }
                     }
                 }

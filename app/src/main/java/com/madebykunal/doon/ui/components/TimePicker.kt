@@ -1,5 +1,6 @@
 package com.madebykunal.doon.ui.components
 
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -14,8 +15,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -141,7 +140,7 @@ fun TimePicker(value: String, onChange: (String) -> Unit) {
 private fun Segment(text: String, selected: Boolean, label: String, onClick: () -> Unit) {
     val c = colors
     Box(
-        Modifier.clip(RoundedCornerShape(12.dp)).background(if (selected) c.accentTint else c.hairline)
+        Modifier.clip(RectangleShape).background(if (selected) c.accentTint else c.hairline)
             .tap(label = label, onClick = onClick).padding(horizontal = Space.m, vertical = Space.xs),
         contentAlignment = Alignment.Center,
     ) {

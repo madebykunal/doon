@@ -1,5 +1,6 @@
 package com.madebykunal.doon.ui.habits
 
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -24,7 +25,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -67,6 +67,8 @@ import com.madebykunal.doon.ui.components.SettingsButton
 import com.madebykunal.doon.ui.components.Txt
 import com.madebykunal.doon.ui.components.dockInset
 import com.madebykunal.doon.ui.components.tap
+import androidx.compose.ui.unit.sp
+import com.madebykunal.doon.ui.components.hairlineBottom
 import com.madebykunal.doon.ui.countdowns.CountRow
 import com.madebykunal.doon.ui.countdowns.EMOJI_STYLE
 import com.madebykunal.doon.ui.theme.DoonColors
@@ -91,9 +93,9 @@ fun HabitsScreen() {
             return@Column
         }
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = dockInset())) {
-            if (both) item("Building") { SectionLabel("Building") }
+            if (both) item("Building") { Txt("BUILDING", Type.label, colors.inkMuted, Modifier.padding(start = GUTTER, top = Space.xl, bottom = Space.s)) }
             items(building, key = { it.id }) { HabitRow(it) }
-            if (both) item("Quitting") { SectionLabel("Quitting") }
+            if (both) item("Quitting") { Txt("QUITTING", Type.label, colors.inkMuted, Modifier.padding(start = GUTTER, top = Space.xl, bottom = Space.s)) }
             items(quitting, key = { it.id }) { HabitRow(it) }
         }
     }
@@ -101,12 +103,12 @@ fun HabitsScreen() {
 
 @Composable
 private fun dotStyle(state: DayState, c: DoonColors): Modifier = when (state) {
-    DayState.Done, DayState.Clean -> Modifier.background(c.accent, CircleShape)
-    DayState.Partial -> Modifier.background(c.accent.copy(alpha = 0.45f), CircleShape)
-    DayState.Missed -> Modifier.background(c.inkMuted.copy(alpha = 0.3f), CircleShape)
-    DayState.Slip -> Modifier.border(1.5.dp, c.inkMuted, CircleShape)
-    DayState.Open -> Modifier.border(1.5.dp, c.accent, CircleShape)
-    else -> Modifier.background(c.hairline, CircleShape)
+    DayState.Done, DayState.Clean -> Modifier.background(c.accent, RectangleShape)
+    DayState.Partial -> Modifier.background(c.accent.copy(alpha = 0.45f), RectangleShape)
+    DayState.Missed -> Modifier.background(c.inkMuted.copy(alpha = 0.3f), RectangleShape)
+    DayState.Slip -> Modifier.border(1.5.dp, c.inkMuted, RectangleShape)
+    DayState.Open -> Modifier.border(1.5.dp, c.accent, RectangleShape)
+    else -> Modifier.background(c.hairline, RectangleShape)
 }
 
 @Composable
@@ -121,13 +123,13 @@ private fun HabitRow(habit: Habit) {
     val dayOff = habit.kind == "build" && !HabitMath.isScheduled(habit.days, today) && count < habit.target
     val week = (0 until 7).map { HabitMath.dayState(s, logs, Dates.addDays(today, it - 6), today) }
     Row(
-        Modifier.fillMaxWidth().tap(pressedColor = c.hairline, label = habit.title) { Nav.push(Route.HabitDetail(habit.id)) }.padding(horizontal = GUTTER, vertical = Space.m),
+        Modifier.fillMaxWidth().tap(pressedColor = c.hairline, label = habit.title) { Nav.push(Route.HabitDetail(habit.id)) }.hairlineBottom(c.hairline).padding(horizontal = GUTTER, vertical = Space.m),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.m),
     ) {
-        EmojiTile(habit.emoji, 44.dp, 22.dp)
+        Txt(habit.emoji, Type.h2, unscaled = true)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
-            Txt(habit.title, Type.bodyStrong, maxLines = 1)
+            Txt(habit.title.uppercase(), Type.listName.copy(fontSize = 20.sp, lineHeight = 24.sp), maxLines = 1)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { week.forEach { Box(Modifier.size(7.dp).then(dotStyle(it, c))) } }
                 Txt(
@@ -140,8 +142,8 @@ private fun HabitRow(habit: Habit) {
             TickRing(count, habit.target, dayOff) { HabitRepo.setCount(habit.id, today, HabitMath.nextCount(s, count)) }
         } else {
             Column(horizontalAlignment = Alignment.End) {
-                Txt(streak.toString(), Type.title, c.accentText, maxLines = 1, tabularNums = true)
-                Txt(HabitMath.streakUnit(s, streak), Type.micro, c.accentText)
+                Txt(streak.toString(), Type.display, c.accentText, maxLines = 1, tabularNums = true)
+                Txt(HabitMath.streakUnit(s, streak).uppercase(), Type.label.copy(fontSize = 10.sp), c.accentText)
             }
         }
     }
@@ -224,17 +226,17 @@ fun HabitDetailScreen(id: String) {
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = GUTTER), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
             Txt(habit.emoji, EMOJI_STYLE, unscaled = true)
-            Txt(habit.title, Type.title)
+            Txt(habit.title.uppercase(), Type.display)
             Txt(HabitMath.scheduleLine(s, Prefs.weekStart), Type.secondary, c.inkMuted)
             Spacer(Modifier.height(Space.xl))
             CountRow(streak.toString(), HabitMath.streakUnit(s, streak), true)
             val buttonMod = when {
-                filled && !quit -> Modifier.background(c.accentTint, CircleShape)
-                quit -> Modifier.border(1.dp, c.hairline, CircleShape)
-                else -> Modifier.background(c.accent, CircleShape)
+                filled && !quit -> Modifier.background(c.accentTint, RectangleShape)
+                quit -> Modifier.border(1.dp, c.hairline, RectangleShape)
+                else -> Modifier.background(c.accent, RectangleShape)
             }
             Box(
-                Modifier.padding(top = Space.m, bottom = Space.xl).heightIn(min = HIT_TARGET).clip(CircleShape).then(buttonMod)
+                Modifier.padding(top = Space.m, bottom = Space.xl).heightIn(min = HIT_TARGET).clip(RectangleShape).then(buttonMod)
                     .tap(pressedAlpha = 0.8f, onClick = logToday).padding(horizontal = Space.xl),
                 contentAlignment = Alignment.Center,
             ) {

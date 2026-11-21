@@ -69,7 +69,6 @@ object Prefs {
         celebration = prefs.getBoolean("celebration", celebration)
         weekStrip = prefs.getBoolean("weekStrip", weekStrip)
         weekBand = prefs.getBoolean("weekBand", weekBand)
-        digestEnabled = prefs.getBoolean("digestEnabled", digestEnabled)
         digestTime = prefs.getString("digestTime", digestTime)!!
         defaultCountdownAlerts = prefs.getString("defaultCountdownAlerts", null)
             ?.split(",")?.mapNotNull { it.toIntOrNull() } ?: defaultCountdownAlerts

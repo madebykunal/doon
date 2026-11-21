@@ -1,5 +1,6 @@
 package com.madebykunal.doon.ui.settings
 
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,8 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -81,7 +80,6 @@ private val THEMES = listOf("system" to "System", "light" to "Light", "dark" to 
 @Composable
 fun SettingsScreen() {
     val c = colors
-    var digestPicker by remember { mutableStateOf(false) }
     var colorPicker by remember { mutableStateOf(false) }
     Ui.resumes
     Box(Modifier.fillMaxSize()) {
@@ -103,13 +101,13 @@ fun SettingsScreen() {
                                         val selected = Prefs.accent == id
                                         if (id == "custom") {
                                             val (fill, on) = c.accentFor(Prefs.customColor)
-                                            val m = if (selected) Modifier.background(fill, CircleShape) else Modifier.border(1.5.dp, c.inkMuted, CircleShape)
-                                            Box(Modifier.size(36.dp).clip(CircleShape).then(m), contentAlignment = Alignment.Center) {
+                                            val m = if (selected) Modifier.background(fill, RectangleShape) else Modifier.border(1.5.dp, c.inkMuted, RectangleShape)
+                                            Box(Modifier.size(36.dp).clip(RectangleShape).then(m), contentAlignment = Alignment.Center) {
                                                 Icon(Ic.Pencil, if (selected) on else c.ink, 16.dp)
                                             }
                                         } else {
                                             val (fill, on) = c.accentFor(Accents.presets.getValue(id).second)
-                                            Box(Modifier.size(36.dp).clip(CircleShape).background(fill), contentAlignment = Alignment.Center) {
+                                            Box(Modifier.size(36.dp).clip(RectangleShape).background(fill), contentAlignment = Alignment.Center) {
                                                 if (selected) Icon(Ic.Check, on, 18.dp, stroke = 3f)
                                             }
                                         }
@@ -125,51 +123,21 @@ fun SettingsScreen() {
                         THEMES.forEach { (mode, label) ->
                             val selected = Prefs.themeMode == mode
                             Box(
-                                Modifier.weight(1f).heightIn(min = 40.dp).clip(RoundedCornerShape(RADIUS_CARD - Space.xs))
+                                Modifier.weight(1f).heightIn(min = 40.dp).clip(RectangleShape)
                                     .background(if (selected) c.accentTint else Color.Transparent).tap(label = label) { Prefs.setThemeMode(mode) },
                                 contentAlignment = Alignment.Center,
                             ) { Txt(label, Type.captionStrong, if (selected) c.accentText else c.inkMuted, maxLines = 1) }
                         }
                     }
                 }
-                Section("Preferences") {
-                    SwitchRow("Hide completed", Prefs.hideCompleted, null, Prefs::setHideCompleted)
-                    SwitchRow("Completed sink to the bottom", Prefs.sinkCompleted, null, Prefs::setSinkCompleted)
+                Section("General") {
                     SwitchRow("Roll over unfinished to-dos", Prefs.rollover, "Moves them to today when a new day starts", Prefs::setRollover)
-                    SwitchRow("Show the week strip", Prefs.weekStrip, "The row of days under the date", Prefs::setWeekStrip)
-                    if (Prefs.weekStrip) SwitchRow("Tint the week strip", Prefs.weekBand, "A soft band with fine lines behind it", Prefs::setWeekBand)
-                    SwitchRow("Celebrate a cleared day", Prefs.celebration, null, Prefs::setCelebration)
-                    SwitchRow("Show to-dos on the widget", Prefs.widgetShowsTodos, "When off, the widget shows only how many", Prefs::setWidgetShowsTodos)
                     SettingRow("Week starts on", right = { Txt(Dates.format(Dates.addDays("2026-11-01", Prefs.weekStart), "EEEE"), color = c.inkMuted) }) {
                         Prefs.setWeekStartsOn((Prefs.weekStart + 1) % 7)
                     }
+                    SwitchRow("Show to-dos on the widget", Prefs.widgetShowsTodos, "When off, the widget shows only how many", Prefs::setWidgetShowsTodos)
                 }
                 RemindersSection()
-                Section("Morning digest") {
-                    SwitchRow("Send a morning digest", Prefs.digestEnabled, "Today’s to-dos and your next countdown") {
-                        Prefs.setDigestEnabled(it)
-                        Reminders.syncDigest(ask = it)
-                    }
-                    if (Prefs.digestEnabled) {
-                        SettingRow("Time", right = { Txt(Prefs.digestTime, color = c.inkMuted) }) { digestPicker = !digestPicker }
-                        if (digestPicker) {
-                            Box(Modifier.padding(vertical = Space.s)) {
-                                TimePicker(Prefs.digestTime) {
-                                    Prefs.setDigestTime(it)
-                                    Reminders.syncDigest()
-                                }
-                            }
-                        }
-                    }
-                }
-                Section("New countdowns alert me") {
-                    CountdownMath.alerts.forEach { (offset, label) ->
-                        val on = offset in Prefs.defaultCountdownAlerts
-                        SwitchRow(label, on, null) {
-                            Prefs.setDefaultCountdownAlerts(if (on) Prefs.defaultCountdownAlerts - offset else Prefs.defaultCountdownAlerts + offset)
-                        }
-                    }
-                }
                 Section("About") {
                     SettingRow("Version", right = { Txt(BuildConfig.VERSION_NAME, color = c.inkMuted) })
                 }
@@ -219,9 +187,9 @@ private fun RemindersSection() {
 private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
     val c = colors
     Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {
-        Txt(title, Type.captionStrong, c.inkMuted, Modifier.padding(horizontal = GUTTER - Space.l))
+        Txt(title.uppercase(), Type.label, c.inkMuted, Modifier.padding(horizontal = GUTTER - Space.l))
         Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(RADIUS_CARD)).background(c.surface).border(1.dp, c.hairline, RoundedCornerShape(RADIUS_CARD)),
+            Modifier.fillMaxWidth().clip(RectangleShape).background(c.surface).border(1.dp, c.hairline, RectangleShape),
             content = content,
         )
     }
@@ -271,7 +239,7 @@ private fun ColorPicker(initial: String, onCancel: () -> Unit, onPick: (String) 
     DialogShell(onCancel) {
         Row(Modifier.fillMaxWidth().padding(bottom = Space.l), verticalAlignment = Alignment.CenterVertically) {
             Txt("Custom accent", Type.h2, modifier = Modifier.weight(1f))
-            Box(Modifier.size(32.dp).clip(CircleShape).background(preview))
+            Box(Modifier.size(32.dp).clip(RectangleShape).background(preview))
         }
         Box(
             Modifier.align(Alignment.CenterHorizontally).size(wheel).pointerInput(Unit) {
@@ -302,8 +270,8 @@ private fun ColorPicker(initial: String, onCancel: () -> Unit, onPick: (String) 
             val ty = center + sin(rad) * s * center
             val half = with(density) { (thumb / 2).toPx() }
             Box(
-                Modifier.offset { IntOffset((tx - half).roundToInt(), (ty - half).roundToInt()) }.size(thumb).shadow(3.dp, CircleShape)
-                    .background(hex(ColorMath.hsvToHex(h, s, 1.0)), CircleShape).border(3.dp, Color.White, CircleShape),
+                Modifier.offset { IntOffset((tx - half).roundToInt(), (ty - half).roundToInt()) }.size(thumb).shadow(3.dp, RectangleShape)
+                    .background(hex(ColorMath.hsvToHex(h, s, 1.0)), RectangleShape).border(3.dp, Color.White, RectangleShape),
             )
         }
         Box(
@@ -325,15 +293,15 @@ private fun ColorPicker(initial: String, onCancel: () -> Unit, onPick: (String) 
             contentAlignment = Alignment.CenterStart,
         ) {
             Box(
-                Modifier.fillMaxWidth().height(14.dp).clip(CircleShape).background(
+                Modifier.fillMaxWidth().height(14.dp).clip(RectangleShape).background(
                     Brush.horizontalGradient(listOf(hex(ColorMath.hsvToHex(h, s, MIN_BRIGHTNESS)), hex(ColorMath.hsvToHex(h, s, 1.0)))),
                 ),
             )
             val x = ((v - MIN_BRIGHTNESS) / (1 - MIN_BRIGHTNESS)) * wheelPx
             val half = with(density) { (thumb / 2).toPx() }
             Box(
-                Modifier.offset { IntOffset((x - half).roundToInt(), 0) }.size(thumb).shadow(3.dp, CircleShape)
-                    .background(hex(hexValue), CircleShape).border(3.dp, Color.White, CircleShape),
+                Modifier.offset { IntOffset((x - half).roundToInt(), 0) }.size(thumb).shadow(3.dp, RectangleShape)
+                    .background(hex(hexValue), RectangleShape).border(3.dp, Color.White, RectangleShape),
             )
         }
         Row(Modifier.padding(top = Space.l), horizontalArrangement = Arrangement.spacedBy(Space.s)) {

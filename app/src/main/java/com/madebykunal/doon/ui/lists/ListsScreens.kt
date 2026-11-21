@@ -1,5 +1,6 @@
 package com.madebykunal.doon.ui.lists
 
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -73,21 +73,20 @@ fun ListsScreen() {
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Lists") {
             SearchButton()
-            HeaderButton(Ic.FolderPlus, "New group") { Nav.openSheet(SheetRoute.ListEditor(mode = "group")) }
             SettingsButton()
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            groups.forEach { group -> GroupSection(group, lists.filter { it.groupId == group.id }, counts) }
+            groups.forEachIndexed { i, group -> GroupSection(group, lists.filter { it.groupId == group.id }, counts, i % 2 == 0) }
             Spacer(Modifier.height(dockInset()))
         }
     }
 }
 
 @Composable
-private fun GroupSection(group: ListGroup, lists: List<TodoList>, counts: Map<String, Int>) {
+private fun GroupSection(group: ListGroup, lists: List<TodoList>, counts: Map<String, Int>, band: Boolean) {
     val c = colors
     var collapsed by remember(group.id) { mutableStateOf(group.collapsed) }
-    Column(Modifier.padding(bottom = Space.m)) {
+    Column(Modifier.fillMaxWidth().background(if (band) c.surface else c.bg).padding(top = Space.l, bottom = Space.m)) {
         Row(Modifier.fillMaxWidth().padding(start = GUTTER, end = Space.s), verticalAlignment = Alignment.CenterVertically) {
             Row(
                 Modifier.weight(1f).heightIn(min = HIT_TARGET).tap(label = if (collapsed) "Expand ${group.name}" else "Collapse ${group.name}") {
@@ -97,18 +96,18 @@ private fun GroupSection(group: ListGroup, lists: List<TodoList>, counts: Map<St
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Space.xs),
             ) {
-                Txt(group.name, Type.secondaryStrong, c.inkMuted, maxLines = 1)
+                Txt(group.name.uppercase(), Type.label, c.inkMuted, maxLines = 1)
                 Icon(if (collapsed) Ic.ChevronRight else Ic.ChevronDown, c.inkMuted, 16.dp)
             }
-            HeaderButton(Ic.Pencil, "Edit group ${group.name}", 15.dp) { Nav.openSheet(SheetRoute.ListEditor(groupId = group.id)) }
+            HeaderButton(Ic.Pencil, "Edit folder ${group.name}", 15.dp) { Nav.openSheet(SheetRoute.ListEditor(groupId = group.id)) }
         }
-        if (!collapsed) ReorderColumn(lists, counts)
+        if (!collapsed) ReorderColumn(lists, counts, if (band) c.surface else c.bg)
     }
 }
 
 @Composable
-private fun ReorderColumn(lists: List<TodoList>, counts: Map<String, Int>) {
-    val rowPx = with(LocalDensity.current) { ROW_MIN_HEIGHT.toPx() }
+private fun ReorderColumn(lists: List<TodoList>, counts: Map<String, Int>, bg: androidx.compose.ui.graphics.Color) {
+    val rowPx = with(LocalDensity.current) { 60.dp.toPx() }
     var dragging by remember { mutableStateOf<String?>(null) }
     var offset by remember { mutableFloatStateOf(0f) }
     val from = lists.indexOfFirst { it.id == dragging }
@@ -154,28 +153,24 @@ private fun ReorderColumn(lists: List<TodoList>, counts: Map<String, Int>) {
                         )
                     },
             ) {
-                ListRow(list, counts[list.id] ?: 0)
+                ListRow(list, counts[list.id] ?: 0, bg)
             }
         }
     }
 }
 
 @Composable
-private fun ListRow(list: TodoList, count: Int) {
+private fun ListRow(list: TodoList, count: Int, bg: androidx.compose.ui.graphics.Color) {
     val c = colors
     Row(
-        Modifier.fillMaxWidth().background(c.bg).tap(label = "${list.name}, $count open") { Nav.push(Route.ListDetail(list.id)) }
-            .heightIn(min = ROW_MIN_HEIGHT).hairlineBottom(c.hairline).padding(horizontal = GUTTER),
+        Modifier.fillMaxWidth().background(bg).tap(label = "${list.name}, $count open") { Nav.push(Route.ListDetail(list.id)) }
+            .heightIn(min = 60.dp).padding(horizontal = GUTTER),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.m),
     ) {
-        EmojiTile(list.emoji ?: "•", 32.dp, 10.dp, style = Type.secondary)
-        Txt(list.name, maxLines = 1, modifier = Modifier.weight(1f))
-        if (count > 0) {
-            Box(Modifier.widthIn(min = 24.dp).clip(CircleShape).background(c.hairline).padding(horizontal = Space.s, vertical = 2.dp), contentAlignment = Alignment.Center) {
-                Txt(count.toString(), Type.caption, c.inkMuted, tabularNums = true)
-            }
-        }
+        if (list.emoji != null) Txt(list.emoji, Type.h2, unscaled = true)
+        Txt(list.name.uppercase(), Type.listName, maxLines = 1, modifier = Modifier.weight(1f))
+        if (count > 0) Txt(count.toString(), Type.secondaryStrong, c.inkMuted, tabularNums = true)
     }
 }
 

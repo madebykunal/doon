@@ -1,5 +1,6 @@
 package com.madebykunal.doon.ui.countdowns
 
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -22,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,6 +65,7 @@ import com.madebykunal.doon.ui.components.SearchButton
 import com.madebykunal.doon.ui.components.SettingsButton
 import com.madebykunal.doon.ui.components.Txt
 import com.madebykunal.doon.ui.components.dockInset
+import com.madebykunal.doon.ui.components.hairlineBottom
 import com.madebykunal.doon.ui.components.tap
 import com.madebykunal.doon.ui.theme.GUTTER
 import com.madebykunal.doon.ui.theme.HIT_TARGET
@@ -86,7 +87,7 @@ fun CountdownsScreen() {
     val upcoming = CountdownMath.sort(data.filter { !CountdownMath.isPast(it.dates, today) }, today) { it.dates }
     val past = data.filter { CountdownMath.isPast(it.dates, today) }.sortedByDescending { it.targetDate }
     Column(Modifier.fillMaxSize()) {
-        ScreenHeader("Countdowns") {
+        ScreenHeader("Soon") {
             SearchButton()
             SettingsButton()
         }
@@ -103,7 +104,7 @@ fun CountdownsScreen() {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(Space.xs),
                     ) {
-                        Txt("Past · ${past.size}", Type.secondaryStrong, c.inkMuted)
+                        Txt("PAST · ${past.size}", Type.label, c.inkMuted)
                         Icon(if (pastOpen) Ic.ChevronDown else Ic.ChevronRight, c.inkMuted, 16.dp)
                     }
                 }
@@ -120,21 +121,19 @@ private fun CountdownCard(item: Countdown, today: String) {
     val title = CountdownMath.titleWithAge(item.dates, item.title, today)
     val date = CountdownMath.dateLine(item.dates, today) + if (item.targetTime != null && item.kind == "until") " · ${item.targetTime}" else ""
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = GUTTER - Space.xs).padding(bottom = Space.s)
-            .clip(RoundedCornerShape(RADIUS_DOCK - Space.xs)).background(c.surface).border(1.dp, c.hairline, RoundedCornerShape(RADIUS_DOCK - Space.xs))
-            .tap(pressedAlpha = 0.85f, label = title) { Nav.push(Route.CountdownDetail(item.id)) }
-            .padding(horizontal = Space.l, vertical = Space.m),
+        Modifier.fillMaxWidth().tap(pressedColor = c.hairline, label = title) { Nav.push(Route.CountdownDetail(item.id)) }
+            .hairlineBottom(c.hairline).padding(horizontal = GUTTER, vertical = Space.m),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.m),
     ) {
-        EmojiTile(item.emoji, 48.dp, 24.dp)
+        Txt(item.emoji, Type.h2, unscaled = true)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Txt(title, Type.bodyStrong, maxLines = 1)
+            Txt(title.uppercase(), Type.listName.copy(fontSize = 20.sp, lineHeight = 24.sp), maxLines = 1)
             Txt(date, Type.caption, c.inkMuted, maxLines = 1)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Txt(display.value, if (display.numeric) Type.title else Type.secondaryStrong, c.accentText, maxLines = 1, tabularNums = true)
-            if (display.unit.isNotEmpty()) Txt(display.unit.split(" ").joinToString(" ") { it.replaceFirstChar(Char::uppercase) }, Type.micro, c.accentText)
+            Txt(display.value.uppercase(), if (display.numeric) Type.display else Type.nav, c.accentText, maxLines = 1, tabularNums = true)
+            if (display.unit.isNotEmpty()) Txt(display.unit.uppercase(), Type.label.copy(fontSize = 10.sp), c.accentText)
         }
     }
 }
@@ -207,7 +206,7 @@ fun CountdownDetailScreen(id: String) {
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = GUTTER), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
             Txt(item.emoji, EMOJI_STYLE, unscaled = true)
-            Txt(CountdownMath.titleWithAge(item.dates, item.title, today), Type.title)
+            Txt(CountdownMath.titleWithAge(item.dates, item.title, today).uppercase(), Type.display)
             Txt(CountdownMath.dateLine(item.dates, today) + if (item.targetTime != null && item.kind == "until") " · ${item.targetTime}" else "", Type.secondary, c.inkMuted)
             Spacer(Modifier.height(Space.xl))
             CountRow(display.value, display.unit, display.numeric)

@@ -1,5 +1,6 @@
 package com.madebykunal.doon.notify
 
+import androidx.compose.ui.graphics.RectangleShape
 import android.app.KeyguardManager
 import android.content.Intent
 import android.net.Uri
@@ -31,7 +32,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -148,9 +148,9 @@ private fun AlertScreen(kind: String, id: String, firedAt: String, locked: Boole
                         alpha = 0.35f * (1 - pulse)
                         scaleX = 1 + pulse * 0.45f
                         scaleY = 1 + pulse * 0.45f
-                    }.border(2.dp, c.onAccent, CircleShape),
+                    }.border(2.dp, c.onAccent, RectangleShape),
                 )
-                Box(Modifier.size(136.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(136.dp).clip(RectangleShape).background(Color.White.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
                     if (isTodo) Icon(Ic.Bell, c.onAccent, 56.dp, stroke = 1.75f)
                     else Txt(countdown!!.emoji, Type.title.copy(fontSize = 64.sp, lineHeight = 78.sp), unscaled = true)
                 }
@@ -179,9 +179,9 @@ private fun AlertScreen(kind: String, id: String, firedAt: String, locked: Boole
 @Composable
 private fun Action(label: String, filled: Boolean, onClick: () -> Unit) {
     val c = colors
-    val m = if (filled) Modifier.background(c.onAccent, CircleShape) else Modifier.border(1.5.dp, c.onAccent, CircleShape)
+    val m = if (filled) Modifier.background(c.onAccent, RectangleShape) else Modifier.border(1.5.dp, c.onAccent, RectangleShape)
     Box(
-        Modifier.fillMaxWidth().heightIn(min = HIT_TARGET + 12.dp).clip(CircleShape).then(m).tap(pressedAlpha = 0.75f, label = label, onClick = onClick),
+        Modifier.fillMaxWidth().heightIn(min = HIT_TARGET + 12.dp).clip(RectangleShape).then(m).tap(pressedAlpha = 0.75f, label = label, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Txt(label, Type.bodyStrong, if (filled) c.accent else c.onAccent) }
 }

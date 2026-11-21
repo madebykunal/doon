@@ -1,5 +1,6 @@
 package com.madebykunal.doon.ui.components
 
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -33,8 +34,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -47,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
@@ -64,6 +64,8 @@ import kotlin.math.roundToInt
 
 val LocalSheetClose = staticCompositionLocalOf<() -> Unit> { {} }
 val LocalSheetTall = staticCompositionLocalOf { false }
+
+private const val HALF = 0.55f
 
 @Composable
 fun SheetHost(content: @Composable (SheetEntry) -> Unit) {
@@ -98,6 +100,7 @@ fun SheetHost(content: @Composable (SheetEntry) -> Unit) {
 fun SheetFrame(
     title: String,
     tall: Boolean = false,
+    expandable: Boolean = false,
     action: Triple<String, Boolean, () -> Unit>? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -106,12 +109,24 @@ fun SheetFrame(
     val scope = rememberCoroutineScope()
     val offset = remember { Animatable(0f) }
     val dismissAt = with(LocalDensity.current) { 120.dp.toPx() }
-    val drag = rememberDraggableState { delta -> scope.launch { offset.snapTo(maxOf(0f, offset.value + delta)) } }
+    val fraction = remember { Animatable(if (expandable) HALF else 1f) }
+    val screen = with(LocalDensity.current) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
+    val drag = rememberDraggableState { delta ->
+        scope.launch {
+            if (expandable && offset.value == 0f && (delta < 0 || fraction.value > HALF)) {
+                fraction.snapTo((fraction.value - delta / screen).coerceIn(HALF, 1f))
+            } else offset.snapTo(maxOf(0f, offset.value + delta))
+        }
+    }
     var m = Modifier.widthIn(max = 640.dp).fillMaxWidth()
-    m = if (tall) m.fillMaxHeight(0.95f) else m.heightIn(max = 720.dp)
+    m = when {
+        expandable -> m.fillMaxHeight(fraction.value)
+        tall -> m.fillMaxHeight(0.95f)
+        else -> m.heightIn(max = 720.dp)
+    }
     Column(
         m.offset { IntOffset(0, offset.value.roundToInt()) }
-            .clip(RoundedCornerShape(topStart = RADIUS_DOCK, topEnd = RADIUS_DOCK))
+            .clip(RectangleShape)
             .background(c.surface),
     ) {
         Column(
@@ -119,13 +134,19 @@ fun SheetFrame(
                 drag,
                 Orientation.Vertical,
                 onDragStopped = { velocity ->
-                    if (offset.value > dismissAt || velocity > 1500f) close()
-                    else scope.launch { offset.animateTo(0f, tween(160)) }
+                    when {
+                        offset.value > dismissAt || (velocity > 1500f && fraction.value <= HALF + 0.01f) -> close()
+                        expandable && offset.value == 0f -> {
+                            val full = velocity < -800f || (velocity < 800f && fraction.value > (HALF + 1f) / 2)
+                            scope.launch { fraction.animateTo(if (full) 1f else HALF, tween(200)) }
+                        }
+                        else -> scope.launch { offset.animateTo(0f, tween(160)) }
+                    }
                 },
             ),
         ) {
             Box(Modifier.fillMaxWidth().padding(top = Space.s), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(36.dp, 4.dp).clip(CircleShape).background(c.inkMuted.copy(alpha = 0.35f)))
+                Box(Modifier.size(36.dp, 4.dp).clip(RectangleShape).background(c.inkMuted.copy(alpha = 0.35f)))
             }
             Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(horizontal = GUTTER), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.widthIn(min = 64.dp).heightIn(min = HIT_TARGET).tap(label = "Cancel", onClick = close), contentAlignment = Alignment.CenterStart) {
@@ -140,7 +161,7 @@ fun SheetFrame(
                 }
             }
         }
-        Column(Modifier.weight(1f, fill = tall).verticalScroll(rememberScrollState())) {
+        Column(Modifier.weight(1f, fill = tall || expandable).verticalScroll(rememberScrollState())) {
             content()
             Spacer(Modifier.navigationBarsPadding().height(Space.xxl))
         }

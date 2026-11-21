@@ -1,5 +1,6 @@
 package com.madebykunal.doon.ui.components
 
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -38,8 +39,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -61,6 +60,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
@@ -169,7 +169,7 @@ fun HeaderButton(ic: Ic, label: String, size: Dp = 20.dp, onClick: () -> Unit) {
 fun SearchButton() = HeaderButton(Ic.Search, "Search") { Nav.push(Route.Search) }
 
 @Composable
-fun SettingsButton() = HeaderButton(Ic.Settings, "Settings") { Nav.push(Route.Settings) }
+fun SettingsButton() = HeaderButton(Ic.Menu, "Menu", 24.dp) { Nav.push(Route.Settings) }
 
 @Composable
 fun ScreenHeader(title: String, back: Boolean = false, right: @Composable RowScope.() -> Unit = {}) {
@@ -182,7 +182,7 @@ fun ScreenHeader(title: String, back: Boolean = false, right: @Composable RowSco
                 Icon(Ic.ChevronLeft, colors.ink, 24.dp)
             }
         }
-        Txt(title, Type.title, maxLines = 1, modifier = Modifier.weight(1f))
+        Txt(title.uppercase(), Type.display, maxLines = 1, modifier = Modifier.weight(1f))
         Row(content = right)
     }
 }
@@ -193,8 +193,8 @@ fun Toggle(value: Boolean) {
     val off = colors.inkMuted.copy(alpha = 0.3f)
     val on = colors.accent
     val track = lerp(off, on, p)
-    Box(Modifier.size(46.dp, 28.dp).clip(CircleShape).background(track).padding(3.dp)) {
-        Box(Modifier.offset(x = 18.dp * p).size(22.dp).shadow(2.dp, CircleShape).background(Color.White, CircleShape))
+    Box(Modifier.size(46.dp, 28.dp).clip(RectangleShape).background(track).padding(3.dp)) {
+        Box(Modifier.offset(x = 18.dp * p).size(22.dp).shadow(2.dp, RectangleShape).background(Color.White, RectangleShape))
     }
 }
 
@@ -209,11 +209,11 @@ fun Checkbox(checked: Boolean, onToggle: () -> Unit) {
         Canvas(Modifier.size(CHECKBOX_SIZE)) {
             val unit = size.width / 22f
             val stroke = 1.75f * unit
-            val r = size.width / 2 - stroke / 2
-            drawCircle(c.inkMuted, r, style = Stroke(stroke))
+            drawRect(c.inkMuted, Offset(stroke / 2, stroke / 2), Size(size.width - stroke, size.height - stroke), style = Stroke(stroke))
             val p = progress.value
             if (p > 0f) {
-                drawCircle(c.accent, r * minOf(1f, p * 1.6f))
+                val side = size.width * minOf(1f, p * 1.6f)
+                drawRect(c.accent, Offset((size.width - side) / 2, (size.height - side) / 2), Size(side, side))
                 val t = maxOf(0f, p - 0.35f) / 0.65f
                 if (t > 0f) {
                     val measure = PathMeasure()
@@ -232,7 +232,7 @@ fun Checkbox(checked: Boolean, onToggle: () -> Unit) {
 @Composable
 fun Chip(content: @Composable RowScope.() -> Unit) {
     Row(
-        Modifier.clip(CircleShape).background(colors.accentTint).padding(horizontal = Space.m, vertical = 5.dp),
+        Modifier.clip(RectangleShape).background(colors.accentTint).padding(horizontal = Space.m, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         content = content,
@@ -260,7 +260,7 @@ fun Field(
     BasicTextField(
         value = value,
         onValueChange = { onChange(it.take(maxLength)) },
-        modifier = modifier.focusRequester(focus).border(1.dp, c.hairline, RoundedCornerShape(12.dp)).heightIn(min = minHeight).padding(horizontal = Space.m, vertical = 10.dp),
+        modifier = modifier.focusRequester(focus).border(1.dp, c.hairline, RectangleShape).heightIn(min = minHeight).padding(horizontal = Space.m, vertical = 10.dp),
         textStyle = style.copy(color = c.ink),
         singleLine = singleLine,
         cursorBrush = SolidColor(c.accent),
@@ -357,7 +357,7 @@ fun DialogButton(action: DialogAction, modifier: Modifier = Modifier, onClick: (
         else -> c.accentTint to c.accentText
     }
     Box(
-        modifier.heightIn(min = 46.dp).clip(CircleShape).background(fill).tap(pressedAlpha = 0.8f, onClick = onClick).padding(horizontal = Space.l),
+        modifier.heightIn(min = 46.dp).clip(RectangleShape).background(fill).tap(pressedAlpha = 0.8f, onClick = onClick).padding(horizontal = Space.l),
         contentAlignment = Alignment.Center,
     ) {
         Txt(action.label, Type.secondaryStrong, ink, maxLines = 1)
@@ -372,8 +372,8 @@ fun DialogShell(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Un
         contentAlignment = Alignment.Center,
     ) {
         Column(
-            Modifier.widthIn(max = 360.dp).fillMaxWidth().clip(RoundedCornerShape(RADIUS_DOCK)).background(c.surface)
-                .border(1.dp, c.hairline, RoundedCornerShape(RADIUS_DOCK)).blockTaps().padding(Space.xxl),
+            Modifier.widthIn(max = 360.dp).fillMaxWidth().clip(RectangleShape).background(c.surface)
+                .border(1.dp, c.hairline, RectangleShape).blockTaps().padding(Space.xxl),
             content = content,
         )
     }
@@ -422,7 +422,7 @@ fun SnackbarHost(bottom: Dp) {
             val bg = if (c.dark) c.ink else Color(0xFF26262A)
             val fg = if (c.dark) c.bg else Color.White
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(RADIUS_CARD)).background(bg).padding(horizontal = Space.l, vertical = Space.m),
+                Modifier.fillMaxWidth().clip(RectangleShape).background(bg).padding(horizontal = Space.l, vertical = Space.m),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Space.l),
             ) {
@@ -441,13 +441,12 @@ fun SnackbarHost(bottom: Dp) {
 
 @Composable
 fun dockInset(): Dp {
-    val nav = with(LocalDensity.current) { WindowInsets.navigationBars.getBottom(this).toDp() }
-    return nav + Space.s + DOCK_HEIGHT + Space.l
+    return 96.dp
 }
 
 @Composable
 fun EmojiTile(emoji: String, size: Dp, radius: Dp, modifier: Modifier = Modifier, style: TextStyle = Type.h2) {
-    Box(modifier.size(size).clip(RoundedCornerShape(radius)).background(colors.accentTint), contentAlignment = Alignment.Center) {
+    Box(modifier.size(size).clip(RectangleShape).background(colors.accentTint), contentAlignment = Alignment.Center) {
         Txt(emoji, style, unscaled = true)
     }
 }

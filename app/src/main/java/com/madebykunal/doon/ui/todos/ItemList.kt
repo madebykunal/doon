@@ -99,14 +99,16 @@ object RowDrag {
     var ghostY by mutableFloatStateOf(0f)
     var ghostSize by mutableStateOf(IntSize.Zero)
     var dropDay by mutableStateOf<DateStr?>(null)
-    var visibleWeekStart by mutableStateOf(Dates.today())
+    var stripFirstDay by mutableStateOf(Dates.today())
+    var stripOffsetPx = 0f
+    var stripCellPx = 1f
     var stripBounds: Rect? = null
 
     fun hitDay(root: Offset): DateStr? {
         val b = stripBounds ?: return null
         if (!b.contains(root)) return null
-        val index = ((root.x - b.left) / (b.width / 7)).toInt().coerceIn(0, 6)
-        return Dates.addDays(visibleWeekStart, index)
+        val index = ((root.x - b.left + stripOffsetPx) / stripCellPx).toInt()
+        return Dates.addDays(stripFirstDay, index)
     }
 }
 
@@ -115,10 +117,6 @@ private sealed interface Entry {
 
     data class RowItem(val item: DisplayItem) : Entry {
         override val key get() = item.todo.id
-    }
-
-    data object ComposerItem : Entry {
-        override val key = "__composer"
     }
 
     data object EmptyItem : Entry {
@@ -135,25 +133,18 @@ fun ItemList(home: Home, rightLabel: String, onSwipeRight: (String) -> Unit, emp
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val version = Live.version(T.TODOS)
-    val hide = Prefs.hideCompleted
-    val sink = Prefs.sinkCompleted
+    val hide = false
+    val sink = false
     val display = remember(version, home, hide, sink) { arrange(TodoRepo.items(home), hide, sink) }
-    val composer = Editor.composer?.takeIf { it.home == home }
     var dragOrder by remember(home) { mutableStateOf<List<DisplayItem>?>(null) }
     val shown = dragOrder ?: display
     val latest by rememberUpdatedState(display)
     val state = rememberLazyListState()
     val onDay = home is Home.Day
 
-    val afterId = (composer?.where as? Where.After)?.id
     val entries = buildList {
-        if (composer?.where == Where.Top) add(Entry.ComposerItem)
-        shown.forEach {
-            add(Entry.RowItem(it))
-            if (afterId == it.todo.id) add(Entry.ComposerItem)
-        }
-        if (composer != null && (composer.where == Where.Bottom || (afterId != null && shown.none { it.todo.id == afterId }))) add(Entry.ComposerItem)
-        if (shown.isEmpty() && composer == null) add(Entry.EmptyItem)
+        shown.forEach { add(Entry.RowItem(it)) }
+        if (shown.isEmpty()) add(Entry.EmptyItem)
     }
 
     var pull by remember { mutableFloatStateOf(0f) }
@@ -344,7 +335,6 @@ fun ItemList(home: Home, rightLabel: String, onSwipeRight: (String) -> Unit, emp
                         onSwipeRight,
                         Modifier.animateItem(fadeInSpec = null).alpha(if (dragKey == entry.key) 0f else 1f),
                     )
-                    Entry.ComposerItem -> Composer(home, composer?.where ?: Where.Bottom, Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null))
                     Entry.EmptyItem -> Txt(emptyText, Type.secondary, c.inkMuted, Modifier.fillMaxWidth().padding(top = 48.dp), align = TextAlign.Center)
                 }
             }
