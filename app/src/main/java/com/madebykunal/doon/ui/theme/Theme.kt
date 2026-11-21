@@ -146,7 +146,7 @@ val LocalColors = staticCompositionLocalOf { buildColors("light", "#1E9E9A") }
 
 val colors: DoonColors @Composable get() = LocalColors.current
 
-private val Condensed = FontFamily(Font(R.font.barlow_condensed_bold, FontWeight.Bold))
+private val Condensed = FontFamily(Font(R.font.barlow_condensed_medium, FontWeight.Medium))
 
 private val Display = FontFamily(
     Font(R.font.bricolage_semibold, FontWeight.SemiBold),
@@ -170,17 +170,17 @@ object Type {
     val numeral = style(Display, FontWeight.Bold, 56, 60)
     val title = style(Display, FontWeight.Bold, 28, 34)
     val h2 = style(Display, FontWeight.SemiBold, 20, 26)
-    val body = style(TextFamily, FontWeight.Medium, 17, 23)
+    val body = style(TextFamily, FontWeight.Normal, 17, 23)
     val bodyStrong = style(TextFamily, FontWeight.SemiBold, 17, 23)
     val secondary = style(TextFamily, FontWeight.Normal, 15, 20)
     val secondaryStrong = style(TextFamily, FontWeight.Medium, 15, 20)
     val caption = style(TextFamily, FontWeight.Normal, 13, 17)
     val captionStrong = style(TextFamily, FontWeight.Medium, 13, 17)
     val micro = style(TextFamily, FontWeight.Medium, 11, 14)
-    val display = style(Condensed, FontWeight.Bold, 32, 36)
-    val listName = style(Condensed, FontWeight.Bold, 30, 34)
-    val nav = style(Condensed, FontWeight.Bold, 24, 28)
-    val heading = style(TextFamily, FontWeight.SemiBold, 16, 22).copy(letterSpacing = 0.6.sp)
+    val display = style(Condensed, FontWeight.Medium, 25, 30).copy(letterSpacing = 0.2.sp)
+    val listName = style(Condensed, FontWeight.Medium, 25, 30).copy(letterSpacing = 0.2.sp)
+    val nav = style(Condensed, FontWeight.Medium, 21, 24).copy(letterSpacing = 0.2.sp)
+    val heading = style(TextFamily, FontWeight.SemiBold, 14, 20).copy(letterSpacing = 0.8.sp)
     val label = style(TextFamily, FontWeight.SemiBold, 12, 16).copy(letterSpacing = 1.2.sp)
 }
 

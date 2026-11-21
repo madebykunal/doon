@@ -223,11 +223,11 @@ private fun DayCell(date: DateStr, width: Dp, isSelected: Boolean, isToday: Bool
     val c = colors
     val ink = c.onAccent
     Box(Modifier.width(width).fillMaxHeight().tap(label = Dates.format(date, "EEEE d MMMM")) { Ui.selectedDate = date }, contentAlignment = Alignment.Center) {
-        if (isSelected) Box(Modifier.size(58.dp).background(ink.copy(alpha = 0.18f), CircleShape))
-        if (isDrop) Box(Modifier.size(58.dp).border(2.dp, ink, CircleShape))
+        if (isSelected) Box(Modifier.size(54.dp).background(ink.copy(alpha = 0.18f), CircleShape))
+        if (isDrop) Box(Modifier.size(54.dp).border(2.dp, ink, CircleShape))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Txt(Dates.format(date, "dd/MM"), Type.captionStrong.copy(fontWeight = FontWeight.SemiBold), ink, unscaled = true, tabularNums = true)
-            Txt(Dates.format(date, "EEE").uppercase(), Type.nav.copy(fontSize = 28.sp, lineHeight = 30.sp), ink, unscaled = true)
+            Txt(Dates.format(date, "dd/MM"), Type.micro.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), ink, unscaled = true, tabularNums = true)
+            Txt(Dates.format(date, "EEE").uppercase(), Type.nav.copy(fontSize = 23.sp, lineHeight = 26.sp), ink, unscaled = true)
         }
         if (isToday && !isSelected) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp).size(4.dp).background(ink, CircleShape))
     }
