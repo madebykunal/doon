@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,8 +34,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.madebykunal.doon.lib.DateStr
 import com.madebykunal.doon.lib.Dates
-import com.madebykunal.doon.lib.pad2
-import com.madebykunal.doon.lib.parseTime
 import com.madebykunal.doon.state.Prefs
 import com.madebykunal.doon.state.Ui
 import com.madebykunal.doon.ui.theme.GUTTER
@@ -198,31 +195,6 @@ fun MonthGrid(year: Int, month: Int, selected: DateStr?, today: DateStr, weekSta
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun TimePicker(value: String, onChange: (String) -> Unit) {
-    val (hour, minute) = parseTime(value)
-    fun set(h: Int, m: Int) = onChange("${pad2((h + 24) % 24)}:${pad2((m + 60) % 60)}")
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.s, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-        Stepper("Hour", pad2(hour), { set(hour - 1, minute) }, { set(hour + 1, minute) })
-        Txt(":", Type.h2)
-        Stepper("Minute", pad2(minute), { set(hour, minute - 5) }, { set(hour, minute + 5) })
-    }
-}
-
-@Composable
-private fun Stepper(label: String, value: String, onDown: () -> Unit, onUp: () -> Unit) {
-    val c = colors
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(HIT_TARGET - 4.dp, HIT_TARGET).tap(label = "$label down", onClick = onDown), contentAlignment = Alignment.Center) {
-            Icon(Ic.ChevronLeft, c.ink, 18.dp)
-        }
-        Box(Modifier.width(36.dp), contentAlignment = Alignment.Center) { Txt(value, Type.h2, tabularNums = true) }
-        Box(Modifier.size(HIT_TARGET - 4.dp, HIT_TARGET).tap(label = "$label up", onClick = onUp), contentAlignment = Alignment.Center) {
-            Icon(Ic.ChevronRight, c.ink, 18.dp)
         }
     }
 }
