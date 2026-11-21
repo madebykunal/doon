@@ -36,6 +36,9 @@ object Prefs {
     @set:JvmName("assign_weekStrip")
     var weekStrip by mutableStateOf(true)
         private set
+    @set:JvmName("assign_weekStripTop")
+    var weekStripTop by mutableStateOf(false)
+        private set
     @set:JvmName("assign_weekBand")
     var weekBand by mutableStateOf(true)
         private set
@@ -69,6 +72,7 @@ object Prefs {
         celebration = prefs.getBoolean("celebration", celebration)
         weekStrip = prefs.getBoolean("weekStrip", weekStrip)
         weekBand = prefs.getBoolean("weekBand", weekBand)
+        weekStripTop = prefs.getBoolean("weekStripTop", weekStripTop)
         digestTime = prefs.getString("digestTime", digestTime)!!
         defaultCountdownAlerts = prefs.getString("defaultCountdownAlerts", null)
             ?.split(",")?.mapNotNull { it.toIntOrNull() } ?: defaultCountdownAlerts
@@ -94,6 +98,7 @@ object Prefs {
     fun setWeekStartsOn(v: Int) { weekStartsOn = v; saved("weekStartsOn") { putInt("weekStartsOn", v) } }
     fun setCelebration(v: Boolean) { celebration = v; saved("celebration") { putBoolean("celebration", v) } }
     fun setWeekStrip(v: Boolean) { weekStrip = v; saved("weekStrip") { putBoolean("weekStrip", v) } }
+    fun setWeekStripTop(v: Boolean) { weekStripTop = v; saved("weekStripTop") { putBoolean("weekStripTop", v) } }
     fun setWeekBand(v: Boolean) { weekBand = v; saved("weekBand") { putBoolean("weekBand", v) } }
     fun setDigestEnabled(v: Boolean) { digestEnabled = v; saved("digestEnabled") { putBoolean("digestEnabled", v) } }
     fun setDigestTime(v: String) { digestTime = v; saved("digestTime") { putString("digestTime", v) } }

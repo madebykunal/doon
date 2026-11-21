@@ -85,7 +85,7 @@ private fun GroupSection(group: ListGroup, lists: List<TodoList>, counts: Map<St
     val c = colors
     var collapsed by remember(group.id) { mutableStateOf(group.collapsed) }
     Column(Modifier.fillMaxWidth().background(if (band) c.surface else c.bg).padding(top = Space.l, bottom = Space.m)) {
-        Row(Modifier.fillMaxWidth().padding(start = GUTTER, end = Space.s), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER), verticalAlignment = Alignment.CenterVertically) {
             Row(
                 Modifier.weight(1f).heightIn(min = HIT_TARGET).tap(
                     label = if (collapsed) "Expand ${group.name}" else "Collapse ${group.name}",
@@ -96,7 +96,8 @@ private fun GroupSection(group: ListGroup, lists: List<TodoList>, counts: Map<St
                 },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Txt(group.name.uppercase() + if (collapsed && lists.isNotEmpty()) "  ·  ${lists.size}" else "", Type.label, c.inkMuted, maxLines = 1)
+                Txt(group.name.uppercase(), Type.label, c.inkMuted, maxLines = 1, modifier = Modifier.weight(1f))
+                if (collapsed && lists.isNotEmpty()) Txt(lists.size.toString(), Type.secondaryStrong, c.inkMuted, tabularNums = true)
             }
         }
         if (!collapsed) ReorderColumn(lists, counts, if (band) c.surface else c.bg)

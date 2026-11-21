@@ -59,6 +59,7 @@ import com.madebykunal.doon.lib.Dates
 import com.madebykunal.doon.lib.Markdown
 import com.madebykunal.doon.state.Editor
 import com.madebykunal.doon.state.Nav
+import com.madebykunal.doon.state.Prefs
 import com.madebykunal.doon.state.Route
 import com.madebykunal.doon.state.SheetRoute
 import com.madebykunal.doon.state.Ui
@@ -177,7 +178,7 @@ private fun Shell(imeVisible: Boolean) {
             SnackbarHost(if (imeVisible) TOOLBAR_HEIGHT + 8.dp else 92.dp)
         }
         if (!imeVisible) {
-            if (onToday) WeekStripBar()
+            if (onToday && !Prefs.weekStripTop) WeekStripBar()
             BottomNav()
         }
     }

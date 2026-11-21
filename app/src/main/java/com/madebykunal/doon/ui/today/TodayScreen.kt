@@ -103,6 +103,7 @@ fun TodayScreen() {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             DayHeader(Ui.selectedDate)
+            if (Prefs.weekStripTop) WeekStripBar()
             DayPager()
         }
         TodayPill()
@@ -199,10 +200,12 @@ fun WeekStripBar() {
             var dragged = 0f
             detectVerticalDragGestures(onDragStart = { dragged = 0f }, onDragEnd = {
                 val threshold = with(density) { 24.dp.toPx() }
-                if (dragged < -threshold && !Ui.calendarOpen) {
+                val opening = if (Prefs.weekStripTop) dragged > threshold else dragged < -threshold
+                val closing = if (Prefs.weekStripTop) dragged < -threshold else dragged > threshold
+                if (opening && !Ui.calendarOpen) {
                     Editor.commitAll()
                     Ui.calendarOpen = true
-                } else if (dragged > threshold && Ui.calendarOpen) Ui.calendarOpen = false
+                } else if (closing && Ui.calendarOpen) Ui.calendarOpen = false
             }) { _, amount -> dragged += amount }
         },
     ) {
@@ -294,7 +297,7 @@ private fun DayCell(date: DateStr, width: Dp, isSelected: Boolean, isToday: Bool
         if (isDrop) Box(Modifier.size(54.dp).border(2.dp, ink, CircleShape))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Txt(Dates.format(date, "dd/MM"), Type.micro.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold), ink, unscaled = true, tabularNums = true)
-            Txt(Dates.format(date, "EEE").uppercase(), Type.nav.copy(fontSize = 22.sp, lineHeight = 25.sp), ink, unscaled = true)
+            Txt(Dates.format(date, "EEE").uppercase(), Type.nav.copy(fontSize = 20.sp, lineHeight = 23.sp), ink, unscaled = true)
         }
         if (isToday && !isSelected) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp).size(4.dp).background(ink, CircleShape))
     }

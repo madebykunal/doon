@@ -135,6 +135,7 @@ fun SettingsScreen() {
                     SettingRow("Week starts on", right = { Txt(Dates.format(Dates.addDays("2026-11-01", Prefs.weekStart), "EEEE"), color = c.inkMuted) }) {
                         Prefs.setWeekStartsOn((Prefs.weekStart + 1) % 7)
                     }
+                    SwitchRow("Week strip at the top", Prefs.weekStripTop, "Shows the days just under the date instead of above the tabs", Prefs::setWeekStripTop)
                     SwitchRow("Show to-dos on the widget", Prefs.widgetShowsTodos, "When off, the widget shows only how many", Prefs::setWidgetShowsTodos)
                 }
                 RemindersSection()
