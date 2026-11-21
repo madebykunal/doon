@@ -80,8 +80,6 @@ import java.time.Period
 import kotlin.math.ceil
 import kotlin.math.roundToLong
 
-val EMOJI_STYLE = Type.title.copy(fontSize = 40.sp, lineHeight = 52.sp)
-
 private val BUCKETS = listOf("Next 7 days", "Within a month", "Next 3 months", "Later", "Counting up")
 
 private fun bucketOf(item: Countdown, today: DateStr): String {
@@ -487,15 +485,5 @@ private fun InfoRow(label: String, onClick: () -> Unit, value: @Composable () ->
     ) {
         Txt(label.uppercase(), Type.label, c.inkMuted, maxLines = 1)
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) { value() }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun CountRow(value: String, unit: String, numeric: Boolean) {
-    val c = colors
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.s), verticalArrangement = Arrangement.Bottom, itemVerticalAlignment = Alignment.Bottom) {
-        if (numeric) Odometer(value, Type.hero) else Txt(value, Type.numeral)
-        if (unit.isNotEmpty()) Txt(unit, Type.secondary, c.inkMuted, Modifier.padding(bottom = Space.m))
     }
 }

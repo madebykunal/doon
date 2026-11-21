@@ -8,6 +8,7 @@ enum class DayState { Done, Partial, Missed, Off, Open, Clean, Slip, None }
 
 object HabitMath {
     const val EVERY_DAY = 0b1111111
+    const val WEEKDAYS = 0b0111110
 
     fun isScheduled(days: Int, date: DateStr): Boolean = (days and (1 shl Dates.weekdayOf(date))) != 0
 
@@ -72,11 +73,38 @@ object HabitMath {
     }
 
     fun streakUnit(habit: Schedule, streak: Int): String =
-        if (habit.kind == "quit") (if (streak == 1) "day free" else "days free") else "day streak"
+        if (habit.kind == "quit") (if (streak == 1) "day free" else "days free") else (if (streak == 1) "day in a row" else "days in a row")
+
+    fun recentRate(habit: Schedule, logs: List<DayLog>, today: DateStr, window: Int = 30): Int? {
+        val done = doneDates(habit, logs)
+        var scheduled = 0
+        var hit = 0
+        for (i in 0 until window) {
+            val date = Dates.addDays(today, -i)
+            if (date < habit.startDate) break
+            if (!isScheduled(habit.days, date)) continue
+            if (date == today && date !in done) continue
+            scheduled++
+            if (date in done) hit++
+        }
+        return if (scheduled == 0) null else hit * 100 / scheduled
+    }
+
+    fun missedLastTime(habit: Schedule, logs: List<DayLog>, today: DateStr): Boolean {
+        val done = doneDates(habit, logs)
+        var date = Dates.addDays(today, -1)
+        repeat(7) {
+            if (date < habit.startDate) return false
+            if (isScheduled(habit.days, date)) return date !in done
+            date = Dates.addDays(date, -1)
+        }
+        return false
+    }
 
     fun scheduleLine(habit: Schedule, weekStartsOn: Int): String {
-        if (habit.kind == "quit") return "Free since ${Dates.format(habit.startDate, "d MMM yyyy")}"
+        if (habit.kind == "quit") return "Stopped on ${Dates.format(habit.startDate, "d MMM yyyy")}"
         val times = if (habit.target == 1) "" else "${habit.target} times a day, "
+        if (habit.days == WEEKDAYS) return (times + "on weekdays").replaceFirstChar { it.uppercase() }
         val line = if (habit.days == EVERY_DAY) "${times}every day" else {
             val names = (0 until 7).map { (weekStartsOn + it) % 7 }
                 .filter { habit.days and (1 shl it) != 0 }

@@ -246,8 +246,15 @@ fun SwipeRow(
         val over = distance - threshold
         return sign(d) * (threshold + band * (1 - 1 / (over / band + 1)))
     }
+    val view = androidx.compose.ui.platform.LocalView.current
+    var armed by remember { mutableStateOf(false) }
     val drag = rememberDraggableState { delta ->
         raw += delta
+        val past = abs(raw) >= threshold
+        if (past != armed) {
+            armed = past
+            view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+        }
         scope.launch { offset.snapTo(shaped(raw)) }
     }
     Box(
@@ -267,7 +274,8 @@ fun SwipeRow(
             ) {
                 val ink = if (right) c.onAccent else c.onDanger
                 val reveal = (kotlin.math.abs(o) / threshold).coerceIn(0f, 1f)
-                Box(Modifier.graphicsLayer { alpha = reveal; translationX = (if (right) -1 else 1) * (1 - reveal) * 24.dp.toPx() }) {
+                val grow = if (armed) 1.08f else 1f
+                Box(Modifier.graphicsLayer { alpha = reveal; scaleX = grow; scaleY = grow; translationX = (if (right) -1 else 1) * (1 - reveal) * 24.dp.toPx() }) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(if (right) Ic.ArrowRight else Ic.Trash, ink, 18.dp)
                         Txt((if (right) rightLabel else "Delete").uppercase(), Type.nav.copy(fontSize = 18.sp, lineHeight = 22.sp), ink, maxLines = 1, unscaled = true)
@@ -280,20 +288,30 @@ fun SwipeRow(
                 drag,
                 Orientation.Horizontal,
                 enabled = enabled,
-                onDragStarted = { raw = offset.value },
-                onDragStopped = {
+                onDragStarted = {
+                    offset.stop()
+                    raw = offset.value
+                },
+                onDragStopped = { velocity ->
                     val d = raw
                     raw = 0f
+                    armed = false
                     val right = d > 0
+                    val flung = abs(velocity) > 2000f && sign(velocity) == sign(d) && abs(d) > threshold / 3
+                    val settle = spring<Float>(dampingRatio = 0.8f, stiffness = 420f)
                     when {
-                        abs(d) < threshold -> offset.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 520f))
+                        abs(d) < threshold && !flung -> offset.animateTo(0f, settle, initialVelocity = velocity)
                         !right && asksBeforeDelete -> {
-                            offset.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 520f))
+                            offset.animateTo(0f, settle, initialVelocity = velocity)
                             TodoActions.delete(id)
                         }
                         else -> {
-                            offset.animateTo(if (right) screen else -screen, tween(110))
-                            collapse.animateTo(0f, tween(110))
+                            val slide = launch {
+                                offset.animateTo(if (right) screen else -screen, tween(200, easing = androidx.compose.animation.core.FastOutLinearInEasing), initialVelocity = velocity)
+                            }
+                            delay(90)
+                            collapse.animateTo(0f, tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                            slide.join()
                             if (right) onSwipeRight(id) else TodoActions.delete(id)
                         }
                     }

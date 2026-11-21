@@ -1,7 +1,10 @@
 package com.madebykunal.doon.ui.habits
 
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -11,9 +14,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,25 +32,28 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.madebykunal.doon.data.Habit
 import com.madebykunal.doon.data.HabitRepo
 import com.madebykunal.doon.data.Live
 import com.madebykunal.doon.data.T
 import com.madebykunal.doon.lib.DateStr
 import com.madebykunal.doon.lib.Dates
+import com.madebykunal.doon.lib.DayLog
 import com.madebykunal.doon.lib.DayState
 import com.madebykunal.doon.lib.HabitMath
 import com.madebykunal.doon.state.DialogAction
@@ -56,118 +64,164 @@ import com.madebykunal.doon.state.Route
 import com.madebykunal.doon.state.SheetRoute
 import com.madebykunal.doon.state.Snack
 import com.madebykunal.doon.state.Ui
-import com.madebykunal.doon.ui.components.EmojiTile
 import com.madebykunal.doon.ui.components.EmptyState
 import com.madebykunal.doon.ui.components.HeaderButton
 import com.madebykunal.doon.ui.components.Ic
-import com.madebykunal.doon.ui.components.Icon
 import com.madebykunal.doon.ui.components.ScreenHeader
-import com.madebykunal.doon.ui.components.SectionLabel
 import com.madebykunal.doon.ui.components.SettingsButton
 import com.madebykunal.doon.ui.components.Txt
 import com.madebykunal.doon.ui.components.dockInset
 import com.madebykunal.doon.ui.components.tap
-import androidx.compose.ui.unit.sp
-import com.madebykunal.doon.ui.components.hairlineBottom
-import com.madebykunal.doon.ui.countdowns.CountRow
-import com.madebykunal.doon.ui.countdowns.EMOJI_STYLE
 import com.madebykunal.doon.ui.theme.DoonColors
 import com.madebykunal.doon.ui.theme.GUTTER
-import com.madebykunal.doon.ui.theme.HIT_TARGET
 import com.madebykunal.doon.ui.theme.Space
 import com.madebykunal.doon.ui.theme.Type
 import com.madebykunal.doon.ui.theme.colors
-import java.text.NumberFormat
+
+private enum class Slot { Due, Done, Rest, Stop }
+
+private class HabitDay(val habit: Habit, val logs: List<DayLog>, val count: Int, val slot: Slot)
+
+private fun dayOf(habit: Habit, logs: List<DayLog>, today: DateStr): HabitDay {
+    val count = HabitMath.countOn(logs, today)
+    val slot = when {
+        habit.kind == "quit" -> Slot.Stop
+        count >= habit.target -> Slot.Done
+        HabitMath.isScheduled(habit.days, today) -> Slot.Due
+        else -> Slot.Rest
+    }
+    return HabitDay(habit, logs, count, slot)
+}
+
+private fun logOnce(habit: Habit, count: Int, today: DateStr) {
+    val next = HabitMath.nextCount(habit.schedule, count)
+    HabitRepo.setCount(habit.id, today, next)
+    if (habit.kind == "quit" && next > 0) Snack.show("It’s okay. Start again today.") { HabitRepo.setCount(habit.id, today, count) }
+}
 
 @Composable
 fun HabitsScreen() {
+    val c = colors
+    val today = Ui.today
     val version = Live.version(T.HABITS)
+    val logsV = Live.version(T.HABIT_LOGS)
     val habits = remember(version) { HabitRepo.all().filter { it.archivedAt == null } }
-    val building = habits.filter { it.kind == "build" }
-    val quitting = habits.filter { it.kind == "quit" }
-    val both = building.isNotEmpty() && quitting.isNotEmpty()
+    val days = remember(version, logsV, today) { habits.map { dayOf(it, HabitRepo.logs(it.id), today) } }
+    val groups = days.groupBy { it.slot }
+    val dueCount = (groups[Slot.Due]?.size ?: 0) + (groups[Slot.Done]?.count { HabitMath.isScheduled(it.habit.days, today) } ?: 0)
+    val doneCount = groups[Slot.Done]?.count { HabitMath.isScheduled(it.habit.days, today) } ?: 0
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Habits") { SettingsButton() }
         if (habits.isEmpty()) {
-            EmptyState("What do you want to change?", "Add something to do more often, or something to stop.")
+            EmptyState("Start with something tiny", "Pick one small thing to do more, or one thing to do less. Tap + to begin.")
             return@Column
         }
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = dockInset())) {
-            if (both) item("Building") { Txt("BUILDING", Type.label, colors.inkMuted, Modifier.padding(start = GUTTER, top = Space.xl, bottom = Space.s)) }
-            items(building, key = { it.id }) { HabitRow(it) }
-            if (both) item("Quitting") { Txt("QUITTING", Type.label, colors.inkMuted, Modifier.padding(start = GUTTER, top = Space.xl, bottom = Space.s)) }
-            items(quitting, key = { it.id }) { HabitRow(it) }
+            if (dueCount > 0) item("today") { TodayProgress(doneCount, dueCount, Modifier.animateItem()) }
+            listOf(Slot.Due to "To do today", Slot.Done to "Done today", Slot.Rest to "Not today", Slot.Stop to "Stopping").forEach { (slot, title) ->
+                val rows = groups[slot] ?: return@forEach
+                item("h:$slot") {
+                    Txt(title.uppercase(), Type.label, c.inkMuted, Modifier.animateItem().padding(horizontal = GUTTER).padding(top = Space.xl, bottom = Space.xs))
+                }
+                items(rows, key = { it.habit.id }) { HabitRow(it, today, Modifier.animateItem()) }
+            }
         }
     }
 }
 
 @Composable
-private fun dotStyle(state: DayState, c: DoonColors): Modifier = when (state) {
-    DayState.Done, DayState.Clean -> Modifier.background(c.accent, RectangleShape)
-    DayState.Partial -> Modifier.background(c.accent.copy(alpha = 0.45f), RectangleShape)
-    DayState.Missed -> Modifier.background(c.inkMuted.copy(alpha = 0.3f), RectangleShape)
-    DayState.Slip -> Modifier.border(1.5.dp, c.inkMuted, RectangleShape)
-    DayState.Open -> Modifier.border(1.5.dp, c.accent, RectangleShape)
-    else -> Modifier.background(c.hairline, RectangleShape)
-}
-
-@Composable
-private fun HabitRow(habit: Habit) {
+private fun TodayProgress(done: Int, total: Int, modifier: Modifier) {
     val c = colors
-    val today = Ui.today
-    val logsV = Live.version(T.HABIT_LOGS)
-    val logs = remember(logsV, habit.id) { HabitRepo.logs(habit.id) }
-    val s = habit.schedule
-    val streak = HabitMath.currentStreak(s, logs, today)
-    val count = HabitMath.countOn(logs, today)
-    val dayOff = habit.kind == "build" && !HabitMath.isScheduled(habit.days, today) && count < habit.target
-    val week = (0 until 7).map { HabitMath.dayState(s, logs, Dates.addDays(today, it - 6), today) }
-    Row(
-        Modifier.fillMaxWidth().tap(pressedColor = c.hairline, label = habit.title) { Nav.push(Route.HabitDetail(habit.id)) }.hairlineBottom(c.hairline).padding(horizontal = GUTTER, vertical = Space.m),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Space.m),
-    ) {
-        Txt(habit.emoji, Type.h2, unscaled = true)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
-            Txt(habit.title.uppercase(), Type.listName.copy(fontSize = 20.sp, lineHeight = 24.sp), maxLines = 1)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                if (Prefs.habitWeekDots) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { week.forEach { Box(Modifier.size(7.dp).then(dotStyle(it, c))) } }
-                Txt(
-                    if (habit.kind == "quit") "Last 7 days" else if (dayOff) "Not due today" else "$streak ${HabitMath.streakUnit(s, streak)}",
-                    Type.caption, c.inkMuted, maxLines = 1,
-                )
+    Column(modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.xs)) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Txt("$done", Type.display.copy(fontSize = 40.sp, lineHeight = 42.sp), c.accentText, tabularNums = true, unscaled = true)
+            Txt(" OF $total DONE TODAY", Type.nav.copy(fontSize = 18.sp, lineHeight = 22.sp), c.ink, Modifier.padding(bottom = 4.dp), unscaled = true)
+        }
+        Row(Modifier.fillMaxWidth().padding(top = Space.s), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            repeat(total) { i ->
+                val fill by animateColorAsState(if (i < done) c.accent else c.hairline, tween(300, delayMillis = 40 * i), label = "seg")
+                Box(Modifier.weight(1f).height(6.dp).background(fill))
             }
         }
-        if (habit.kind == "build") {
-            TickRing(count, habit.target, dayOff) { HabitRepo.setCount(habit.id, today, HabitMath.nextCount(s, count)) }
-        } else {
-            Column(horizontalAlignment = Alignment.End) {
-                Txt(streak.toString(), Type.display, c.accentText, maxLines = 1, tabularNums = true)
-                Txt(HabitMath.streakUnit(s, streak).uppercase(), Type.label.copy(fontSize = 10.sp), c.accentText)
+        if (done == total) Txt("All done. That’s how habits are made.", Type.caption, c.inkMuted, Modifier.padding(top = Space.s))
+    }
+}
+
+private fun Modifier.weekDay(state: DayState, c: DoonColors): Modifier = when (state) {
+    DayState.Done, DayState.Clean -> background(c.accent)
+    DayState.Partial -> background(c.accent.copy(alpha = 0.45f))
+    DayState.Slip -> border(1.5.dp, c.inkMuted)
+    DayState.Open -> border(1.5.dp, c.accent)
+    DayState.Missed -> background(c.inkMuted.copy(alpha = 0.3f))
+    else -> background(c.hairline)
+}
+
+@Composable
+private fun HabitRow(day: HabitDay, today: DateStr, modifier: Modifier) {
+    val c = colors
+    val habit = day.habit
+    val s = habit.schedule
+    val streak = HabitMath.currentStreak(s, day.logs, today)
+    val sub = buildList {
+        habit.cue?.takeIf { it.isNotBlank() }?.let { add(it) }
+        if (habit.kind == "build" && streak > 0) add("$streak ${HabitMath.streakUnit(s, streak)}")
+        if (isEmpty()) add(HabitMath.scheduleLine(s, Prefs.weekStart))
+    }.joinToString(" · ")
+    Row(
+        modifier.fillMaxWidth().alpha(if (day.slot == Slot.Rest) 0.6f else 1f)
+            .tap(pressedColor = c.hairline, label = habit.title) { Nav.push(Route.HabitDetail(habit.id)) }
+            .heightIn(min = 68.dp).padding(horizontal = GUTTER, vertical = Space.s),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.l),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Txt(habit.title, Type.bodyStrong, maxLines = 1)
+            Txt(sub, Type.caption, c.inkMuted, maxLines = 1)
+            if (Prefs.habitWeekDots) {
+                val week = (0 until 7).map { HabitMath.dayState(s, day.logs, Dates.addDays(today, it - 6), today) }
+                Row(Modifier.padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    week.forEach { Box(Modifier.size(8.dp).weekDay(it, c)) }
+                }
             }
+        }
+        if (habit.kind == "quit") {
+            Column(horizontalAlignment = Alignment.End) {
+                Txt(streak.toString(), Type.display.copy(fontSize = 30.sp, lineHeight = 32.sp), c.accentText, maxLines = 1, tabularNums = true, unscaled = true)
+                Txt(HabitMath.streakUnit(s, streak).uppercase(), Type.label.copy(fontSize = 10.sp), c.inkMuted, unscaled = true)
+            }
+        } else {
+            LogBlock(day.count, habit.target) { logOnce(habit, day.count, today) }
         }
     }
 }
 
 @Composable
-private fun TickRing(count: Int, target: Int, dimmed: Boolean, onClick: () -> Unit) {
+private fun LogBlock(count: Int, target: Int, onClick: () -> Unit) {
     val c = colors
     val done = count >= target
-    val progress by animateFloatAsState(minOf(1f, count / target.toFloat()), tween(160), label = "ring")
-    Box(Modifier.size(HIT_TARGET).alpha(if (dimmed) 0.45f else 1f).tap(label = if (target == 1) "Done" else "Add one", onClick = onClick), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(30.dp)) {
-            val stroke = 2.5.dp.toPx()
-            val r = (size.width - stroke) / 2
-            if (done) drawCircle(c.accent, r)
-            drawCircle(c.hairline, r, style = Stroke(stroke))
-            drawArc(c.accent, -90f, 360f * progress, false, Offset(stroke / 2, stroke / 2), Size(r * 2, r * 2), style = Stroke(stroke, cap = StrokeCap.Round))
+    val part by animateFloatAsState(minOf(1f, count / target.toFloat()), tween(220), label = "part")
+    val pop = remember { Animatable(1f) }
+    LaunchedEffect(done) {
+        if (done) {
+            pop.snapTo(0.85f)
+            pop.animateTo(1f, spring(dampingRatio = 0.35f, stiffness = 500f))
         }
-        if (done) Icon(Ic.Check, c.onAccent, 16.dp, stroke = 3f)
-        else if (target > 1) Txt("$count/$target", Type.micro, c.inkMuted, tabularNums = true, unscaled = true)
+    }
+    Box(
+        Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value }
+            .tap(pressedScale = 0.9f, label = if (done) "Undo" else "Done") { onClick() }
+            .size(72.dp, 44.dp).border(1.5.dp, if (count > 0) c.accent else c.inkMuted.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.fillMaxHeight().fillMaxWidth(part).align(Alignment.CenterStart).background(c.accent))
+        val text = when {
+            done -> "DONE"
+            target > 1 -> "$count/$target"
+            else -> "DO IT"
+        }
+        Txt(text, Type.nav.copy(fontSize = 17.sp, lineHeight = 20.sp), if (part >= 0.5f) c.onAccent else c.ink, maxLines = 1, tabularNums = true, unscaled = true)
     }
 }
-
-private fun plural(n: Int, word: String) = "${NumberFormat.getIntegerInstance().format(n)} $word${if (n == 1) "" else "s"}"
 
 @Composable
 fun HabitDetailScreen(id: String) {
@@ -187,68 +241,100 @@ fun HabitDetailScreen(id: String) {
     val best = HabitMath.bestStreak(s, logs, today)
     val count = HabitMath.countOn(logs, today)
     val done = count >= habit.target
+    val scheduled = HabitMath.isScheduled(habit.days, today)
     val inRange = logs.filter { it.date >= habit.startDate && it.date <= today }
     val total = if (quit) inRange.size else inRange.count { it.count >= habit.target }
+    val rate = if (quit) null else HabitMath.recentRate(s, logs, today)
+    val edit = { Nav.openSheet(SheetRoute.HabitEditor(id)) }
 
     val remove = {
         Dialogs.show(
             "Delete this habit?",
-            "${habit.title} and its history",
+            "${habit.title} and all its days",
             listOf(
-                DialogAction("Cancel", "cancel"),
                 DialogAction("Delete", "destructive") {
                     HabitRepo.softDelete(id)
                     Nav.popScreen()
                     Snack.show("Habit deleted") { HabitRepo.restore(id) }
                 },
+                DialogAction("Cancel", "cancel"),
             ),
         )
     }
-    val logToday = {
-        val previous = count
-        val next = HabitMath.nextCount(s, count)
-        HabitRepo.setCount(id, today, next)
-        if (quit && next > 0) Snack.show("Slip logged") { HabitRepo.setCount(id, today, previous) }
+    val nudge = when {
+        quit && streak == 0 -> "Day one. You can do this."
+        quit -> "$streak ${if (streak == 1) "day" else "days"} without it. Keep going."
+        done -> if (streak > 1) "Nice. That’s $streak days in a row." else "Nice. You showed up today."
+        !scheduled -> "Not planned for today. Doing it anyway still counts."
+        HabitMath.missedLastTime(s, logs, today) -> "Missed last time? That’s fine. Just don’t miss twice."
+        else -> "Small is fine. Just start."
     }
-    val label = when {
-        quit -> if (count > 0) "Undo today’s slip" else "I slipped today"
-        done -> "Done today · undo"
-        !HabitMath.isScheduled(habit.days, today) -> "Log an extra day"
-        habit.target > 1 -> "Log one · $count of ${habit.target}"
-        else -> "Mark today done"
+    val button = when {
+        quit -> if (count > 0) "UNDO SLIP" else "I SLIPPED TODAY"
+        done -> "DONE TODAY"
+        habit.target > 1 -> "DONE ONCE · $count OF ${habit.target}"
+        else -> "I DID IT TODAY"
     }
-    val filled = if (quit) count == 0 else done
+    val filled = !quit && !done
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("", back = true) {
-            HeaderButton(Ic.Trash, "Delete habit", 18.dp, remove)
+            HeaderButton(Ic.Pencil, "Edit habit", 20.dp, edit)
+            HeaderButton(Ic.Trash, "Delete habit", 20.dp, remove)
         }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = GUTTER), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
-            Txt(habit.emoji, EMOJI_STYLE, unscaled = true)
-            Txt(habit.title.uppercase(), Type.display, modifier = Modifier.tap(label = "Edit habit") { Nav.openSheet(SheetRoute.HabitEditor(id)) })
-            Txt(HabitMath.scheduleLine(s, Prefs.weekStart), Type.secondary, c.inkMuted)
-            Spacer(Modifier.height(Space.xl))
-            CountRow(streak.toString(), HabitMath.streakUnit(s, streak), true)
-            val buttonMod = when {
-                filled && !quit -> Modifier.background(c.accentTint, RectangleShape)
-                quit -> Modifier.border(1.dp, c.hairline, RectangleShape)
-                else -> Modifier.background(c.accent, RectangleShape)
-            }
-            Box(
-                Modifier.padding(top = Space.m, bottom = Space.xl).heightIn(min = HIT_TARGET).clip(RectangleShape).then(buttonMod)
-                    .tap(pressedAlpha = 0.8f, onClick = logToday).padding(horizontal = Space.xl),
-                contentAlignment = Alignment.Center,
-            ) {
-                Txt(label, Type.secondaryStrong, if (quit) c.ink else if (filled) c.accentText else c.onAccent)
-            }
-            BoxWithConstraints {
-                HabitGrid(maxWidth, today, Prefs.weekStart, { HabitMath.dayState(s, logs, it, today) }) { date ->
-                    if (date >= habit.startDate) HabitRepo.setCount(id, date, HabitMath.nextCount(s, HabitMath.countOn(logs, date)))
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = GUTTER)) {
+                Txt((if (quit) "Stopping" else "Doing").uppercase(), Type.label, c.accentText)
+                Txt(habit.title.uppercase(), Type.display.copy(fontSize = 34.sp, lineHeight = 38.sp), modifier = Modifier.padding(top = Space.s).tap(label = "Edit habit", onClick = edit))
+                val cue = habit.cue?.takeIf { it.isNotBlank() }
+                Txt(listOfNotNull(cue, HabitMath.scheduleLine(s, Prefs.weekStart)).joinToString(" · "), Type.secondary, c.inkMuted, Modifier.padding(top = Space.xs))
+
+                val shown = remember(id) { Animatable(0f) }
+                LaunchedEffect(streak) { shown.animateTo(streak.toFloat(), tween(600, easing = FastOutSlowInEasing)) }
+                Row(Modifier.padding(top = Space.xxl), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
+                    Txt(shown.value.toInt().toString(), Type.display.copy(fontSize = 96.sp, lineHeight = 98.sp), c.accentText, maxLines = 1, tabularNums = true, unscaled = true)
+                    Txt(HabitMath.streakUnit(s, streak).uppercase(), Type.nav, c.ink, Modifier.padding(bottom = Space.m), unscaled = true)
+                }
+                Txt(nudge, Type.secondary, c.inkMuted, Modifier.padding(top = Space.xs))
+
+                val fill by animateColorAsState(if (filled) c.accent else Color.Transparent, tween(200), label = "btn")
+                Box(
+                    Modifier.padding(top = Space.l).fillMaxWidth().tap(pressedScale = 0.97f, label = button) { logOnce(habit, count, today) }
+                        .heightIn(min = 56.dp).background(fill).border(1.5.dp, if (filled) c.accent else c.hairline),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Txt(button, Type.nav, if (filled) c.onAccent else if (quit) c.ink else c.accentText, unscaled = true)
                 }
             }
-            Txt(if (quit) "Best run ${plural(best, "day")} · ${plural(total, "slip")}" else "Best streak ${plural(best, "day")} · Done ${plural(total, "day")}", Type.caption, c.inkMuted)
-            Txt(if (quit) "Tap a day to mark or clear a slip." else "Tap a day to fill in one you missed.", Type.caption, c.inkMuted)
-            Spacer(Modifier.height(dockInset()))
+
+            Row(Modifier.padding(horizontal = GUTTER).padding(top = Space.xxl).fillMaxWidth().height(IntrinsicSize.Min).border(1.dp, c.hairline)) {
+                val cells = buildList {
+                    add(best.toString() to if (quit) "Longest run" else "Best run")
+                    add(total.toString() to if (quit) "Slips" else "Days done")
+                    if (rate != null) add("$rate%" to "Last 30 days")
+                }
+                cells.forEachIndexed { i, (value, label) ->
+                    if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(c.hairline))
+                    Column(Modifier.weight(1f).padding(Space.m), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Txt(value, Type.display.copy(fontSize = 28.sp, lineHeight = 30.sp), maxLines = 1, tabularNums = true, unscaled = true)
+                        Txt(label.uppercase(), Type.label.copy(fontSize = 10.sp), c.inkMuted, maxLines = 1, unscaled = true)
+                    }
+                }
+            }
+
+            Column(Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.xxl)) {
+                Txt("YOUR DAYS", Type.label, c.inkMuted)
+                BoxWithConstraints(Modifier.padding(top = Space.s)) {
+                    HabitGrid(maxWidth, today, Prefs.weekStart, { HabitMath.dayState(s, logs, it, today) }) { date ->
+                        if (date >= habit.startDate) HabitRepo.setCount(id, date, HabitMath.nextCount(s, HabitMath.countOn(logs, date)))
+                    }
+                }
+                Txt(
+                    if (quit) "Tap a day to add or remove a slip." else "Forgot to log a day? Tap it to fill it in.",
+                    Type.caption, c.inkMuted, Modifier.padding(top = Space.xs),
+                )
+            }
+            Spacer(Modifier.height(dockInset() + Space.xl))
         }
     }
 }
@@ -263,7 +349,7 @@ private fun HabitGrid(width: Dp, today: DateStr, weekStartsOn: Int, stateOf: (Da
     val height = pitch * 7
     val first = Dates.addDays(Dates.startOfWeek(today, weekStartsOn), -(weeks - 1) * 7)
     val states = (0 until weeks * 7).map { stateOf(Dates.addDays(first, it)) }
-    Row(Modifier.padding(vertical = Space.s)) {
+    Row {
         Box(Modifier.width(label).height(height)) {
             listOf(0, 3, 6).forEach { row ->
                 Txt(Dates.format(Dates.addDays(first, row), "EEEEE"), Type.micro, c.inkMuted, Modifier.offset(y = pitch * row + pitch / 2 - 7.dp), unscaled = true)
@@ -282,18 +368,20 @@ private fun HabitGrid(width: Dp, today: DateStr, weekStartsOn: Int, stateOf: (Da
             },
         ) {
             val p = size.width / weeks
-            val r = minOf(p, 20.dp.toPx()) * 0.34f
+            val side = p * 0.78f
+            val inset = (p - side) / 2
             val ring = Stroke(1.5.dp.toPx())
+            val box = Size(side, side)
             states.forEachIndexed { i, state ->
-                val center = Offset((i / 7) * p + p / 2, (i % 7) * p + p / 2)
+                val at = Offset((i / 7) * p + inset, (i % 7) * p + inset)
                 when (state) {
-                    DayState.Done, DayState.Clean -> drawCircle(c.accent, r, center)
-                    DayState.Partial -> drawCircle(c.accent.copy(alpha = 0.45f), r, center)
-                    DayState.Missed -> drawCircle(c.inkMuted.copy(alpha = 0.28f), r, center)
-                    DayState.Slip -> drawCircle(c.inkMuted, r, center, style = ring)
-                    DayState.Open -> drawCircle(c.accent, r, center, style = ring)
-                    DayState.Off -> drawCircle(c.inkMuted.copy(alpha = 0.1f), r, center)
-                    DayState.None -> drawCircle(c.hairline, r, center)
+                    DayState.Done, DayState.Clean -> drawRect(c.accent, at, box)
+                    DayState.Partial -> drawRect(c.accent.copy(alpha = 0.45f), at, box)
+                    DayState.Missed -> drawRect(c.inkMuted.copy(alpha = 0.28f), at, box)
+                    DayState.Slip -> drawRect(c.inkMuted, at, box, style = ring)
+                    DayState.Open -> drawRect(c.accent, at, box, style = ring)
+                    DayState.Off -> drawRect(c.inkMuted.copy(alpha = 0.1f), at, box)
+                    DayState.None -> drawRect(c.hairline, at, box)
                 }
             }
         }

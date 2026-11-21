@@ -144,13 +144,14 @@ data class Habit(
     val position: String,
     val archivedAt: Long?,
     val deletedAt: Long?,
+    val cue: String?,
 ) {
     val schedule get() = Schedule(kind, target, days, startDate)
 
     companion object {
         fun from(c: Cursor) = Habit(
             c.str("id"), c.str("title"), c.str("emoji"), c.str("kind"), c.int("target"), c.int("days"),
-            c.str("start_date"), c.str("position"), c.longOrNull("archived_at"), c.longOrNull("deleted_at"),
+            c.str("start_date"), c.str("position"), c.longOrNull("archived_at"), c.longOrNull("deleted_at"), c.optStr("cue"),
         )
     }
 }

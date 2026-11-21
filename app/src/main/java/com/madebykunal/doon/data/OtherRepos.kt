@@ -135,13 +135,13 @@ object HabitRepo {
     fun logs(habitId: String): List<DayLog> =
         Db.query("SELECT date, count FROM habit_logs WHERE habit_id = ? AND count > 0 ORDER BY date DESC", listOf(habitId)) { DayLog(it.getString(0), it.getInt(1)) }
 
-    fun create(title: String, emoji: String, kind: String, target: Int, days: Int, startDate: DateStr) {
+    fun create(title: String, kind: String, target: Int, days: Int, startDate: DateStr, cue: String?) {
         val last = Db.one("SELECT position FROM habits WHERE deleted_at IS NULL ORDER BY position DESC") { it.getString(0) }
         val now = System.currentTimeMillis()
         Db.insert(
             "habits",
             values(
-                "id" to Db.uuid(), "title" to title, "emoji" to emoji, "kind" to kind, "target" to target, "days" to days,
+                "id" to Db.uuid(), "title" to title, "emoji" to "", "kind" to kind, "target" to target, "days" to days, "cue" to cue,
                 "start_date" to startDate, "position" to FractionalIndex.between(last, null), "created_at" to now, "updated_at" to now,
             ),
         )
@@ -169,7 +169,7 @@ object HabitRepo {
         if (gone.isEmpty()) return
         val ph = Db.placeholders(gone.size)
         Db.tx {
-            Db.update("habits", values("title" to "", "emoji" to "", "updated_at" to System.currentTimeMillis()), "id IN ($ph)", gone)
+            Db.update("habits", values("title" to "", "emoji" to "", "cue" to null, "updated_at" to System.currentTimeMillis()), "id IN ($ph)", gone)
             Db.db.delete("habit_logs", "habit_id IN ($ph)", gone.toTypedArray())
         }
         Db.checkpoint()

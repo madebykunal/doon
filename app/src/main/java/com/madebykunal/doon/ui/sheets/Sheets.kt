@@ -270,11 +270,13 @@ private fun TodoDetailsSheet(id: String) {
         ) {
             Box(Modifier.size(20.dp).background(highlight?.let { c.highlightBar(it) } ?: Color.Transparent, CircleShape).border(1.5.dp, c.inkMuted, CircleShape))
             Txt("Highlight", modifier = Modifier.weight(1f))
-            highlightIds.forEach { hid ->
-                Box(Modifier.size(HIT_TARGET - 8.dp, HIT_TARGET).tap(label = "Highlight $hid") { highlight = if (highlight == hid) null else hid }, contentAlignment = Alignment.Center) {
-                    var m = Modifier.size(22.dp).background(c.highlightBar(hid), CircleShape)
-                    if (highlight == hid) m = m.border(2.dp, c.ink, CircleShape)
-                    Box(m)
+            Row {
+                highlightIds.forEach { hid ->
+                    Box(Modifier.size(32.dp, HIT_TARGET).tap(pressedScale = 0.85f, label = "Highlight $hid") { highlight = if (highlight == hid) null else hid }, contentAlignment = Alignment.Center) {
+                        var m = Modifier.size(22.dp).background(c.highlightBar(hid), CircleShape)
+                        if (highlight == hid) m = m.border(2.dp, c.ink, CircleShape)
+                        Box(m)
+                    }
                 }
             }
         }
@@ -604,6 +606,9 @@ private fun CountdownEditorSheet(id: String?) {
 
 private const val MAX_TARGET = 20
 
+private val CUES = listOf("When I wake up", "After breakfast", "After work", "Before bed")
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HabitEditorSheet(id: String?) {
     val c = colors
@@ -611,66 +616,106 @@ private fun HabitEditorSheet(id: String?) {
     val today = Ui.today
     val existing = remember { id?.let { HabitRepo.get(it) } }
     var title by remember { mutableStateOf(existing?.title ?: "") }
-    var emoji by remember { mutableStateOf(existing?.emoji ?: "🌱") }
     var kind by remember { mutableStateOf(existing?.kind ?: "build") }
     var target by remember { mutableIntStateOf(existing?.target ?: 1) }
     var days by remember { mutableIntStateOf(existing?.days ?: HabitMath.EVERY_DAY) }
+    var picking by remember { mutableStateOf(existing != null && existing.days != HabitMath.EVERY_DAY && existing.days != HabitMath.WEEKDAYS) }
     var startDate by remember { mutableStateOf(existing?.startDate ?: today) }
+    var earlier by remember { mutableStateOf(existing != null && existing.startDate != today) }
+    var cue by remember { mutableStateOf(existing?.cue ?: "") }
+    val build = kind == "build"
 
     val save = save@{
         val name = title.trim()
         if (name.isEmpty()) return@save
-        val t = if (kind == "build") target else 1
-        if (existing != null) HabitRepo.update(existing.id, "title" to name, "emoji" to emoji, "kind" to kind, "target" to t, "days" to days, "start_date" to startDate)
-        else HabitRepo.create(name, emoji, kind, t, days, startDate)
+        val t = if (build) target else 1
+        val d = if (build) days else HabitMath.EVERY_DAY
+        val when_ = cue.trim().ifEmpty { null }?.takeIf { build }
+        if (existing != null) HabitRepo.update(existing.id, "title" to name, "kind" to kind, "target" to t, "days" to d, "start_date" to startDate, "cue" to when_)
+        else HabitRepo.create(name, kind, t, d, startDate, when_)
         close()
     }
+    val ready = title.isNotBlank()
 
-    SheetFrame(if (existing != null) "Edit habit" else "New habit", tall = true, action = Triple("Save", title.isNotBlank(), save)) {
-        NameRow(emoji, { emoji = it }) { Field(title, { title = it }, "Habit name", Modifier.fillMaxWidth(), autoFocus = existing == null) }
+    SheetFrame(if (existing != null) "Edit habit" else "New habit", tall = true, action = Triple("Save", ready, save)) {
         if (existing == null) {
-            SectionLabel("Type")
-            OptionRow("Build", "Something to do more often", selected = kind == "build") { kind = "build" }
-            OptionRow("Quit", "Something to stop. Counts the days free", selected = kind == "quit") { kind = "quit" }
+            EditorLabel("Start or stop?")
+            Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Choice("Start doing", build, Modifier.weight(1f)) { kind = "build" }
+                Choice("Stop doing", !build, Modifier.weight(1f)) { kind = "quit" }
+            }
+            Txt(
+                if (build) "Something you want to do more." else "Something you want to do less.",
+                Type.caption, c.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.s),
+            )
         }
-        if (kind == "build") {
-            SectionLabel("Days")
-            Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER, vertical = Space.s), horizontalArrangement = Arrangement.SpaceBetween) {
-                (0 until 7).map { (Prefs.weekStart + it) % 7 }.forEach { weekday ->
-                    val on = days and (1 shl weekday) != 0
-                    val name = Dates.format(Dates.addDays("2026-11-01", weekday), "EEEE")
-                    var m = Modifier.size(40.dp).clip(RectangleShape)
-                    m = if (on) m.background(c.accent) else m.border(1.dp, c.hairline, RectangleShape)
-                    Box(
-                        m.tap(label = name) {
+
+        EditorLabel(if (build) "What will you do?" else "What will you stop?")
+        Field(
+            title, { title = it }, if (build) "Read 2 pages" else "Smoking",
+            Modifier.fillMaxWidth().padding(horizontal = GUTTER),
+            style = Type.display.copy(fontSize = 24.sp, lineHeight = 30.sp),
+            autoFocus = existing == null,
+        )
+        if (build) Txt("Keep it tiny. Two minutes is enough to start.", Type.caption, c.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.s))
+
+        if (build) {
+            EditorLabel("When will you do it?")
+            Field(cue, { cue = it }, "After I make tea", Modifier.fillMaxWidth().padding(horizontal = GUTTER), maxLength = 60)
+            FlowRow(
+                Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.s),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                maxItemsInEachRow = 2,
+            ) {
+                CUES.forEach { option -> Choice(option, cue == option, Modifier.weight(1f)) { cue = if (cue == option) "" else option } }
+            }
+            Txt("Linking it to something you already do helps it stick.", Type.caption, c.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.s))
+
+            EditorLabel("How often?")
+            Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Choice("Every day", !picking && days == HabitMath.EVERY_DAY, Modifier.weight(1f)) { picking = false; days = HabitMath.EVERY_DAY }
+                Choice("Weekdays", !picking && days == HabitMath.WEEKDAYS, Modifier.weight(1f)) { picking = false; days = HabitMath.WEEKDAYS }
+                Choice("Pick days", picking, Modifier.weight(1f)) { picking = true }
+            }
+            if (picking) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.s), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    (0 until 7).map { (Prefs.weekStart + it) % 7 }.forEach { weekday ->
+                        val name = Dates.format(Dates.addDays("2026-11-01", weekday), "EEE")
+                        Choice(name, days and (1 shl weekday) != 0, Modifier.weight(1f), style = Type.nav.copy(fontSize = 14.sp, lineHeight = 16.sp)) {
                             val next = days xor (1 shl weekday)
                             if (next != 0) days = next
-                        },
-                        contentAlignment = Alignment.Center,
-                    ) { Txt(name.take(1), Type.secondaryStrong, if (on) c.onAccent else c.inkMuted) }
+                        }
+                    }
                 }
             }
-            SectionLabel("Times a day")
-            OptionRow(if (target == 1) "Once" else "$target times", right = {
-                Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                    StepButton(Ic.Minus, "Fewer", target > 1) { target = maxOf(1, target - 1) }
-                    StepButton(Ic.Plus, "More", target < MAX_TARGET) { target = minOf(MAX_TARGET, target + 1) }
+
+            EditorLabel("How many times a day?")
+            Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Choice("−", false, Modifier.size(56.dp, 48.dp), style = Type.nav.copy(fontSize = 24.sp, lineHeight = 26.sp)) { target = maxOf(1, target - 1) }
+                Box(Modifier.weight(1f).heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
+                    Txt(if (target == 1) "ONCE" else "$target TIMES", Type.nav, c.ink, unscaled = true)
                 }
-            })
+                Choice("+", false, Modifier.size(56.dp, 48.dp), style = Type.nav.copy(fontSize = 24.sp, lineHeight = 26.sp)) { target = minOf(MAX_TARGET, target + 1) }
+            }
         } else {
-            SectionLabel("Free since")
-            DatePicker(startDate, { startDate = if (it > today) today else it })
+            EditorLabel("When did you stop?")
+            Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Choice("Today", !earlier, Modifier.weight(1f)) { earlier = false; startDate = today }
+                Choice("Earlier", earlier, Modifier.weight(1f)) { earlier = true }
+            }
+            if (earlier) Box(Modifier.padding(top = Space.s)) { DatePicker(startDate, { startDate = if (it > today) today else it }) }
+            Txt("Slips happen. You can log them, and the count starts again.", Type.caption, c.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.s))
+        }
+
+        Box(
+            Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.xxl).heightIn(min = 56.dp)
+                .background(if (ready) c.accent else c.hairline).tap(enabled = ready, pressedScale = 0.97f, label = "Save", onClick = save),
+            contentAlignment = Alignment.Center,
+        ) {
+            Txt(if (existing != null) "SAVE CHANGES" else if (build) "START THIS HABIT" else "START COUNTING", Type.nav, if (ready) c.onAccent else c.inkMuted, unscaled = true)
         }
     }
-}
-
-@Composable
-private fun StepButton(ic: Ic, label: String, enabled: Boolean, onClick: () -> Unit) {
-    val c = colors
-    Box(
-        Modifier.size(HIT_TARGET - 4.dp).alpha(if (enabled) 1f else 0.4f).clip(RectangleShape).background(c.accentTint).tap(enabled = enabled, label = label, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) { Icon(ic, c.accentText, 18.dp, stroke = 2.25f) }
 }
 
 private val COMMON_EMOJI = listOf(
