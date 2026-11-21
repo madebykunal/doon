@@ -148,12 +148,11 @@ fun InlineText(source: String, style: TextStyle, modifier: Modifier = Modifier, 
 @Composable
 fun TodoRow(todo: Todo, count: Int, rightLabel: String, onSwipeRight: (String) -> Unit, modifier: Modifier = Modifier) {
     val c = colors
-    val editing = Editor.editingId == todo.id
     val highlight = todo.highlight
     val background = if (highlight != null) c.highlightTint(highlight) else c.bg
     SwipeRow(
         id = todo.id,
-        enabled = !editing && RowDrag.draggingId == null,
+        enabled = RowDrag.draggingId == null,
         rightLabel = rightLabel,
         onSwipeRight = onSwipeRight,
         asksBeforeDelete = todo.seriesId != null,
@@ -161,97 +160,36 @@ fun TodoRow(todo: Todo, count: Int, rightLabel: String, onSwipeRight: (String) -
         modifier = modifier,
     ) {
         val bar = if (highlight != null) c.highlightBar(highlight) else null
-        val card = if (todo.isHeading) Modifier.padding(horizontal = Space.s, vertical = 6.dp).clip(RoundedCornerShape(8.dp)).background(c.surface) else Modifier
         Row(
-            Modifier.fillMaxWidth().hairlineBottom(c.hairline).then(card).heightIn(min = if (todo.isHeading) 48.dp else 60.dp)
+            Modifier.fillMaxWidth().hairlineBottom(c.hairline).heightIn(min = 60.dp)
                 .drawBehind { if (bar != null) drawRect(bar, size = Size(3.dp.toPx(), size.height)) }
-                .padding(start = if (todo.isHeading) GUTTER - Space.s else GUTTER - 11.dp, end = if (todo.isHeading) GUTTER - Space.s else GUTTER),
+                .padding(start = GUTTER - 11.dp, end = GUTTER),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (todo.isHeading) HeadingBody(todo, count, editing) else TodoBody(todo, editing)
-        }
-    }
-}
-
-@Composable
-private fun androidx.compose.foundation.layout.RowScope.TodoBody(todo: Todo, editing: Boolean) {
-    val c = colors
-    Checkbox(todo.completed) {
-        Editor.stopEditing()
-        TodoActions.toggle(todo.id)
-    }
-    Column(Modifier.weight(1f)) {
-        if (editing) RowInput(todo.text, Type.body)
-        else {
-            val desc = todo.description
-            StrikeText(
-                todo.text,
-                todo.completed,
-                Modifier.fillMaxWidth().tap(label = "Open details") { openDetails(todo.id) }
-                    .padding(start = 2.dp, top = 14.dp, bottom = if (desc != null) 2.dp else 14.dp),
-            )
-            if (desc != null) {
-                Txt(desc, Type.caption, c.inkMuted, Modifier.fillMaxWidth().tap { openDetails(todo.id) }.padding(start = 2.dp, bottom = Space.m), maxLines = 2)
+            Checkbox(todo.completed) { TodoActions.toggle(todo.id) }
+            Column(Modifier.weight(1f)) {
+                val desc = todo.description
+                StrikeText(
+                    todo.text,
+                    todo.completed,
+                    Modifier.fillMaxWidth().tap(label = "Open details") { openDetails(todo.id) }
+                        .padding(start = 2.dp, top = 14.dp, bottom = if (desc != null) 2.dp else 14.dp),
+                )
+                if (desc != null) {
+                    Txt(desc, Type.caption, c.inkMuted, Modifier.fillMaxWidth().tap { openDetails(todo.id) }.padding(start = 2.dp, bottom = Space.m), maxLines = 2)
+                }
+            }
+            Row(Modifier.padding(start = Space.s), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (todo.rolloverCount >= ROLLOVER_BADGE_AT) Txt("↻${todo.rolloverCount}", Type.micro, c.inkMuted)
+                val remindAt = todo.remindAt
+                if (remindAt != null) {
+                    Icon(Ic.Bell, c.inkMuted, 13.dp)
+                    Txt(com.madebykunal.doon.lib.Dates.formatMillis(remindAt, "HH:mm"), Type.micro, c.inkMuted, tabularNums = true)
+                }
+                if (todo.seriesId != null) Icon(Ic.Repeat, c.inkMuted, 13.dp)
             }
         }
     }
-    if (!editing) {
-        Row(Modifier.padding(start = Space.s), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (todo.rolloverCount >= ROLLOVER_BADGE_AT) Txt("↻${todo.rolloverCount}", Type.micro, c.inkMuted)
-            if (todo.remindAt != null) Icon(Ic.Bell, c.inkMuted, 13.dp)
-            if (todo.seriesId != null) Icon(Ic.Repeat, c.inkMuted, 13.dp)
-        }
-    }
-}
-
-@Composable
-private fun androidx.compose.foundation.layout.RowScope.HeadingBody(todo: Todo, count: Int, editing: Boolean) {
-    val c = colors
-    val rotation by animateFloatAsState(if (todo.collapsed) -90f else 0f, tween(160), label = "chevron")
-    Box(Modifier.weight(1f).padding(start = 4.dp)) {
-        if (editing) RowInput(todo.text, Type.bodyStrong)
-        else InlineText(todo.text.uppercase(), Type.heading.copy(color = c.ink), Modifier.fillMaxWidth().tap(label = "Edit heading") { Editor.startEditing(todo.id, todo.text) }.padding(start = 2.dp, top = 14.dp, bottom = 14.dp))
-    }
-    if (!editing) {
-        Row(
-            Modifier.heightIn(min = HIT_TARGET).tap(label = if (todo.collapsed) "Expand" else "Collapse") { TodoActions.toggleCollapsed(todo.id) }.padding(start = Space.m),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Space.xs),
-        ) {
-            Txt(count.toString(), Type.caption, c.inkMuted, tabularNums = true)
-            Icon(Ic.ChevronDown, c.inkMuted, 16.dp, modifier = Modifier.rotate(rotation))
-        }
-    }
-}
-
-@Composable
-private fun RowInput(text: String, style: TextStyle) {
-    val c = colors
-    var value by remember { mutableStateOf(text) }
-    val focus = remember { FocusRequester() }
-    var focused by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    BasicTextField(
-        value = value,
-        onValueChange = {
-            if (it.contains('\n')) {
-                value = it.replace("\n", "")
-                Editor.draftText = value
-                Editor.stopEditing()
-            } else {
-                value = it
-                Editor.draftText = it
-            }
-        },
-        modifier = Modifier.fillMaxWidth().focusRequester(focus).onFocusChanged {
-            if (focused && !it.isFocused) Editor.stopEditing()
-            focused = it.isFocused
-        }.padding(start = 2.dp, top = 14.dp, bottom = 14.dp),
-        textStyle = style.copy(color = c.ink),
-        cursorBrush = SolidColor(c.accent),
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { Editor.stopEditing() }),
-    )
 }
 
 @Composable
@@ -375,39 +313,6 @@ fun SwipeRow(
                 },
             ),
         ) { content() }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun EditToolbar() {
-    val c = colors
-    val editingId = Editor.editingId
-    val composing = Editor.composer != null
-    if (editingId == null) return
-    if (!WindowInsets.isImeVisible) return
-    Box(Modifier.fillMaxSize().imePadding(), contentAlignment = Alignment.BottomCenter) {
-        Row(
-            Modifier.fillMaxWidth().height(TOOLBAR_HEIGHT).background(c.surface).hairlineTop(c.hairline).padding(horizontal = Space.s),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (editingId != null) {
-                Box(Modifier.size(HIT_TARGET).tap(label = "Make a to-do") {
-                    Editor.stopEditing()
-                    TodoActions.toggleHeading(editingId)
-                }, contentAlignment = Alignment.Center) { Icon(Ic.Heading, c.ink, 20.dp) }
-                Box(Modifier.size(HIT_TARGET).tap(label = "Delete") {
-                    Editor.stopEditing()
-                    TodoActions.delete(editingId)
-                }, contentAlignment = Alignment.Center) { Icon(Ic.Trash, c.dangerText, 20.dp) }
-            } else {
-                Txt("Try “every monday” or “# Heading”", Type.caption, c.inkMuted, Modifier.padding(start = Space.m))
-            }
-            Spacer(Modifier.weight(1f))
-            Box(Modifier.size(HIT_TARGET).tap(label = "Done") { Editor.commitAll() }, contentAlignment = Alignment.Center) {
-                Icon(Ic.Check, c.accentText, 22.dp, stroke = 2.5f)
-            }
-        }
     }
 }
 

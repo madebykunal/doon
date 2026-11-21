@@ -16,6 +16,13 @@ object Ui {
     var selectedDate by mutableStateOf(today)
     var calendarOpen by mutableStateOf(false)
     var cleared by mutableIntStateOf(0)
+    var recenter by mutableIntStateOf(0)
+
+    fun goToToday() {
+        selectedDate = today
+        calendarOpen = false
+        recenter++
+    }
     var resumes by mutableIntStateOf(0)
 
     fun refreshToday(): Boolean {
@@ -103,14 +110,14 @@ object Nav {
 
     fun canGoBack(): Boolean =
         Dialogs.current != null || sheets.any { it.visible.targetState } || Ui.calendarOpen ||
-            Editor.editingId != null || Editor.composer != null || overlay.isNotEmpty() || stacks[tab].isNotEmpty()
+            Editor.composer != null || overlay.isNotEmpty() || stacks[tab].isNotEmpty()
 
     fun back() {
         when {
             Dialogs.current != null -> Dialogs.dismiss()
             sheets.any { it.visible.targetState } -> closeSheet()
             Ui.calendarOpen -> Ui.calendarOpen = false
-            Editor.editingId != null || Editor.composer != null -> Editor.commitAll()
+            Editor.composer != null -> Editor.commitAll()
             else -> popScreen()
         }
     }
@@ -119,17 +126,10 @@ object Nav {
 data class ComposerState(val home: Home, val where: Where)
 
 object Editor {
-    var editingId by mutableStateOf<String?>(null); private set
     var composer by mutableStateOf<ComposerState?>(null)
     var draftText = ""
     var draftDescription = ""
     var keepWords = false
-
-    fun stopEditing(save: Boolean = true) {
-        val id = editingId ?: return
-        editingId = null
-        if (save) TodoActions.saveEdit(id, draftText)
-    }
 
     fun closeComposer(save: Boolean) {
         val open = composer ?: return
@@ -138,14 +138,7 @@ object Editor {
     }
 
     fun commitAll() {
-        stopEditing()
         closeComposer(true)
-    }
-
-    fun startEditing(id: String, text: String) {
-        commitAll()
-        draftText = text
-        editingId = id
     }
 
     fun openComposer(home: Home, where: Where) {

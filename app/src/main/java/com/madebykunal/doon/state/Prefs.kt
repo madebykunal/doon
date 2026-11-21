@@ -51,9 +51,6 @@ object Prefs {
     @set:JvmName("assign_defaultCountdownAlerts")
     var defaultCountdownAlerts by mutableStateOf(listOf(0))
         private set
-    @set:JvmName("assign_widgetShowsTodos")
-    var widgetShowsTodos by mutableStateOf(true)
-        private set
     @set:JvmName("assign_fullScreenAlerts")
     var fullScreenAlerts by mutableStateOf(false)
         private set
@@ -76,7 +73,6 @@ object Prefs {
         digestTime = prefs.getString("digestTime", digestTime)!!
         defaultCountdownAlerts = prefs.getString("defaultCountdownAlerts", null)
             ?.split(",")?.mapNotNull { it.toIntOrNull() } ?: defaultCountdownAlerts
-        widgetShowsTodos = prefs.getBoolean("widgetShowsTodos", widgetShowsTodos)
         fullScreenAlerts = prefs.getBoolean("fullScreenAlerts", fullScreenAlerts)
     }
 
@@ -103,6 +99,5 @@ object Prefs {
     fun setDigestEnabled(v: Boolean) { digestEnabled = v; saved("digestEnabled") { putBoolean("digestEnabled", v) } }
     fun setDigestTime(v: String) { digestTime = v; saved("digestTime") { putString("digestTime", v) } }
     fun setDefaultCountdownAlerts(v: List<Int>) { defaultCountdownAlerts = v; saved("defaultCountdownAlerts") { putString("defaultCountdownAlerts", v.joinToString(",")) } }
-    fun setWidgetShowsTodos(v: Boolean) { widgetShowsTodos = v; saved("widgetShowsTodos") { putBoolean("widgetShowsTodos", v) } }
     fun setFullScreenAlerts(v: Boolean) { fullScreenAlerts = v; saved("fullScreenAlerts") { putBoolean("fullScreenAlerts", v) } }
 }

@@ -2,6 +2,15 @@ package com.madebykunal.doon.ui.sheets
 
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.unit.sp
+import com.madebykunal.doon.ui.components.Checkbox
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -103,7 +112,42 @@ private fun Value(text: String) {
 }
 
 @Composable
+private fun PlainField(value: String, onChange: (String) -> Unit, placeholder: String, style: TextStyle, modifier: Modifier = Modifier) {
+    val c = colors
+    BasicTextField(
+        value = value,
+        onValueChange = { onChange(it.take(2000)) },
+        modifier = modifier,
+        textStyle = style.copy(color = c.ink),
+        cursorBrush = SolidColor(c.accent),
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+        decorationBox = { inner ->
+            Box {
+                if (value.isEmpty()) Txt(placeholder, style, c.inkMuted)
+                inner()
+            }
+        },
+    )
+}
+
+@Composable
+private fun DetailRow(ic: Ic, label: String, value: String? = null, tint: Color? = null, onClick: () -> Unit) {
+    val c = colors
+    Row(
+        Modifier.fillMaxWidth().tap(pressedColor = c.hairline, label = label, onClick = onClick).hairlineBottom(c.hairline)
+            .heightIn(min = 56.dp).padding(horizontal = GUTTER),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.l),
+    ) {
+        Icon(ic, tint ?: c.inkMuted, 20.dp)
+        Txt(label, color = tint ?: c.ink, modifier = Modifier.weight(1f))
+        if (value != null) Txt(value, Type.secondary, if (value == "None" || value == "Never") c.inkMuted else c.accentText, Modifier.widthIn(max = 200.dp), maxLines = 1)
+    }
+}
+
+@Composable
 private fun TodoDetailsSheet(id: String) {
+    val c = colors
     val close = LocalSheetClose.current
     val today = Ui.today
     val version = Live.version(T.TODOS)
@@ -136,18 +180,29 @@ private fun TodoDetailsSheet(id: String) {
         close()
         TodoActions.saveDetails(id, TodoDetails(text, description, highlight, remindAt, chosenRule), currentRule)
     }
-    fun leave(action: (String) -> Unit) {
-        close()
-        action(id)
-    }
-    val place = live.date?.let { Dates.format(it, "EEE d MMM") } ?: live.listId?.let { ListRepo.get(it)?.name } ?: "List"
-
-    SheetFrame("To-do", expandable = true, action = Triple("Save", text.isNotBlank() && !inPast, save)) {
-        Column(Modifier.padding(horizontal = GUTTER).padding(bottom = Space.m), verticalArrangement = Arrangement.spacedBy(Space.s)) {
-            Field(text, { text = it }, "To-do", Modifier.fillMaxWidth(), Type.body.copy(fontWeight = FontWeight.SemiBold), singleLine = false)
-            Field(description, { description = it }, "Description", Modifier.fillMaxWidth(), singleLine = false, minHeight = 96.dp, maxLength = 2000)
+    val place = live.date?.let {
+        when (it) {
+            today -> "Today"
+            Dates.addDays(today, 1) -> "Tomorrow"
+            else -> Dates.format(it, "EEEE, d MMMM")
         }
-        OptionRow("Reminder", right = { Value(reminder?.let { "${Dates.format(it.first, "EEE d MMM")} · ${it.second}" } ?: "None") }) {
+    } ?: live.listId?.let { ListRepo.get(it)?.name } ?: "List"
+
+    SheetFrame("", expandable = true, action = Triple("Save", text.isNotBlank() && !inPast, save)) {
+        Txt(place.uppercase(), Type.label, c.inkMuted, Modifier.padding(horizontal = GUTTER).padding(bottom = Space.s))
+        Row(Modifier.fillMaxWidth().padding(start = GUTTER - 11.dp, end = GUTTER), verticalAlignment = Alignment.Top) {
+            Checkbox(live.completed) { TodoActions.toggle(id) }
+            PlainField(text, { text = it }, "Task name", Type.h2.copy(fontWeight = FontWeight.Medium), Modifier.weight(1f).padding(top = 10.dp))
+        }
+        Row(
+            Modifier.fillMaxWidth().hairlineBottom(c.hairline).padding(start = GUTTER, end = GUTTER, top = Space.s, bottom = Space.l),
+            horizontalArrangement = Arrangement.spacedBy(Space.l),
+        ) {
+            Icon(Ic.TextLines, c.inkMuted, 20.dp, modifier = Modifier.padding(top = 1.dp))
+            PlainField(description, { description = it }, "Add a description", Type.secondary.copy(lineHeight = 21.sp), Modifier.weight(1f).heightIn(min = 48.dp))
+        }
+
+        DetailRow(Ic.Bell, "Reminder", reminder?.let { "${Dates.format(it.first, "EEE d MMM")} · ${it.second}" } ?: "None") {
             if (reminder == null) reminder = (live.date ?: today) to "09:00"
             toggle("reminder")
         }
@@ -156,7 +211,7 @@ private fun TodoDetailsSheet(id: String) {
             Column(Modifier.padding(bottom = Space.s)) {
                 if (live.date == null) DatePicker(r.first, { reminder = it to r.second })
                 TimePicker(r.second) { reminder = r.first to it }
-                if (inPast) Txt("That time has already passed.", Type.caption, colors.inkMuted, Modifier.padding(horizontal = GUTTER, vertical = Space.xs))
+                if (inPast) Txt("That time has already passed.", Type.caption, c.inkMuted, Modifier.padding(horizontal = GUTTER, vertical = Space.xs))
                 TIME_PRESETS.forEach { (label, time) ->
                     OptionRow(label, right = { Value(time) }, selected = r.second == time) { reminder = r.first to time }
                 }
@@ -167,12 +222,12 @@ private fun TodoDetailsSheet(id: String) {
             }
         }
         if (live.date != null) {
-            OptionRow("Repeat", right = { Value(chosenRule?.let(Recurrence::describe) ?: "Never") }) { toggle("repeat") }
+            DetailRow(Ic.Repeat, "Repeat", chosenRule?.let { Recurrence.describe(it).removePrefix("Repeats ").replaceFirstChar(Char::uppercase) } ?: "Never") { toggle("repeat") }
             if (panel == "repeat") {
                 Column(Modifier.padding(bottom = Space.s)) {
                     Field(phrase, { phrase = it }, "Type a rule, like every mon and thu", Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.s), capitalize = false)
                     if (phrase.isNotEmpty() && typed == null) {
-                        Txt("Not understood yet. Try “every 2 weeks” or “every 15th”.", Type.caption, colors.inkMuted, Modifier.padding(horizontal = GUTTER, vertical = Space.xs))
+                        Txt("Not understood yet. Try “every 2 weeks” or “every 15th”.", Type.caption, c.inkMuted, Modifier.padding(horizontal = GUTTER, vertical = Space.xs))
                     }
                     RULE_PRESETS.forEach { (label, preset) ->
                         OptionRow(label, selected = phrase.isEmpty() && rule == preset) {
@@ -187,32 +242,24 @@ private fun TodoDetailsSheet(id: String) {
                 }
             }
         }
-        HighlightRow(highlight) { highlight = it }
-        OptionRow(if (live.date != null) "Day" else "List", right = { Value(place) }) { Nav.openSheet(SheetRoute.MoveTo(id = id)) }
-        OptionRow("Turn into a heading") { leave(TodoActions::toggleHeading) }
-        OptionRow("Delete", destructive = true) { leave(TodoActions::delete) }
-    }
-}
-
-@Composable
-private fun HighlightRow(value: String?, onChange: (String?) -> Unit) {
-    val c = colors
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 52.dp).hairlineBottom(c.hairline).padding(start = GUTTER, end = GUTTER - Space.s),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Txt("Highlight", modifier = Modifier.weight(1f))
-        highlightIds.forEach { id ->
-            Box(Modifier.size(HIT_TARGET - 4.dp, HIT_TARGET).tap(label = "Highlight $id") { onChange(id) }, contentAlignment = Alignment.Center) {
-                var m = Modifier.size(24.dp).clip(RectangleShape).background(c.highlightBar(id))
-                if (value == id) m = m.border(2.dp, c.ink, RectangleShape)
-                Box(m)
+        Row(
+            Modifier.fillMaxWidth().hairlineBottom(c.hairline).heightIn(min = 56.dp).padding(start = GUTTER, end = GUTTER - Space.s),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.l),
+        ) {
+            Box(Modifier.size(20.dp).background(highlight?.let { c.highlightBar(it) } ?: Color.Transparent, CircleShape).border(1.5.dp, c.inkMuted, CircleShape))
+            Txt("Highlight", modifier = Modifier.weight(1f))
+            highlightIds.forEach { hid ->
+                Box(Modifier.size(HIT_TARGET - 8.dp, HIT_TARGET).tap(label = "Highlight $hid") { highlight = if (highlight == hid) null else hid }, contentAlignment = Alignment.Center) {
+                    var m = Modifier.size(22.dp).background(c.highlightBar(hid), CircleShape)
+                    if (highlight == hid) m = m.border(2.dp, c.ink, CircleShape)
+                    Box(m)
+                }
             }
         }
-        Box(Modifier.size(HIT_TARGET - 4.dp, HIT_TARGET).tap(label = "No highlight") { onChange(null) }, contentAlignment = Alignment.Center) {
-            Box(Modifier.size(24.dp).border(1.5.dp, if (value == null) c.ink else c.hairline, RectangleShape), contentAlignment = Alignment.Center) {
-                Icon(Ic.X, c.inkMuted, 12.dp)
-            }
+        DetailRow(Ic.Trash, "Delete task", tint = c.dangerText) {
+            close()
+            TodoActions.delete(id)
         }
     }
 }

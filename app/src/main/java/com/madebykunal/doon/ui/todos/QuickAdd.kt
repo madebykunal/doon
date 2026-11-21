@@ -41,7 +41,13 @@ import com.madebykunal.doon.data.Home
 import com.madebykunal.doon.data.ListRepo
 import com.madebykunal.doon.data.Where
 import com.madebykunal.doon.lib.Dates
-import com.madebykunal.doon.lib.ParseRepeat
+import com.madebykunal.doon.lib.SmartInput
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import com.madebykunal.doon.state.ComposerState
 import com.madebykunal.doon.state.Editor
 import com.madebykunal.doon.state.TodoActions
@@ -82,7 +88,17 @@ private fun Panel(state: ComposerState) {
     var picking by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
     val home = state.home
-    val preview = if (home is Home.Day && !ignoreRepeat) ParseRepeat.parse(value) else null
+    val smart = remember(value, ignoreRepeat) { if (ignoreRepeat || value.isBlank()) null else SmartInput.parse(value, Ui.today).takeIf { it.found } }
+    val highlight = remember(smart, c) {
+        val spans = smart?.spans.orEmpty()
+        VisualTransformation { text ->
+            val styled = buildAnnotatedString {
+                append(text)
+                spans.filter { it.last < text.length }.forEach { addStyle(SpanStyle(color = c.accentText, background = c.accentTint), it.first, it.last + 1) }
+            }
+            TransformedText(styled, OffsetMapping.Identity)
+        }
+    }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
     fun change(next: String) {
@@ -129,11 +145,12 @@ private fun Panel(state: ComposerState) {
             modifier = Modifier.fillMaxWidth().padding(horizontal = GUTTER).focusRequester(focus),
             textStyle = Type.h2.copy(color = c.ink),
             cursorBrush = SolidColor(c.accent),
+            visualTransformation = highlight,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { submit() }),
             decorationBox = { inner ->
                 Box {
-                    if (value.isEmpty()) Txt("e.g. Call mum every friday", Type.h2, c.inkMuted)
+                    if (value.isEmpty()) Txt("e.g. Call mum on fri at 6pm", Type.h2, c.inkMuted)
                     inner()
                 }
             },
@@ -169,33 +186,33 @@ private fun Panel(state: ComposerState) {
             horizontalArrangement = Arrangement.spacedBy(Space.s),
         ) {
             Row(
-                Modifier.heightIn(min = 36.dp).background(c.hairline).tap(enabled = home is Home.Day, label = "Change day") { picking = !picking }.padding(horizontal = Space.m),
+                Modifier.height(40.dp).background(c.hairline).tap(enabled = home is Home.Day, label = "Change day") { picking = !picking }.padding(horizontal = Space.m),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Icon(Ic.Calendar, c.inkMuted, 16.dp)
                 Txt(place, Type.secondaryStrong, maxLines = 1)
             }
-            if (preview != null) {
+            if (smart != null) {
                 Row(
-                    Modifier.heightIn(min = 36.dp).background(c.accentTint).tap(label = "Remove repeat") {
+                    Modifier.height(40.dp).weight(1f, fill = false).background(c.accentTint).tap(label = "Keep my words as typed") {
                         ignoreRepeat = true
                         Editor.keepWords = true
                     }.padding(horizontal = Space.m),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Icon(Ic.Repeat, c.accentText, 14.dp)
-                    Txt(preview.label.removePrefix("Repeats "), Type.captionStrong, c.accentText, maxLines = 1)
+                    Icon(if (smart.rule != null) Ic.Repeat else Ic.Bell, c.accentText, 14.dp)
+                    Txt(smart.summary(Ui.today), Type.captionStrong, c.accentText, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
                     Txt("×", Type.caption, c.accentText)
                 }
             }
             Spacer(Modifier.weight(1f))
             Box(
-                Modifier.size(48.dp).background(if (value.isBlank()) c.hairline else c.accent).tap(label = "Add") { submit() },
+                Modifier.size(40.dp).background(if (value.isBlank()) c.hairline else c.accent).tap(label = "Add") { submit() },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Ic.ArrowRight, if (value.isBlank()) c.inkMuted else c.onAccent, 22.dp, stroke = 2.25f)
+                Icon(Ic.ArrowRight, if (value.isBlank()) c.inkMuted else c.onAccent, 18.dp, stroke = 2.25f)
             }
         }
     }

@@ -38,7 +38,7 @@ object Live {
     }
 }
 
-private const val VERSION = 3
+private const val VERSION = 4
 
 private val SCHEMA_V1 = listOf(
     """CREATE TABLE `countdowns` (`id` text PRIMARY KEY NOT NULL, `title` text NOT NULL, `emoji` text NOT NULL, `color` text NOT NULL, `kind` text NOT NULL, `target_date` text NOT NULL, `target_time` text, `birth_year` integer, `show_in_widget` integer DEFAULT 1 NOT NULL, `widget_position` text NOT NULL, `show_on_calendar` integer DEFAULT 0 NOT NULL, `notify` text NOT NULL, `notification_ids` text NOT NULL, `archived_at` integer, `created_at` integer NOT NULL, `updated_at` integer NOT NULL, `deleted_at` integer)""",
@@ -63,7 +63,11 @@ private val SCHEMA_V3 = listOf(
     "ALTER TABLE `todos` ADD `description` text",
 )
 
-private val MIGRATIONS = listOf(SCHEMA_V1, SCHEMA_V2, SCHEMA_V3)
+private val SCHEMA_V4 = listOf(
+    "UPDATE `todos` SET `is_heading` = 0, `collapsed` = 0 WHERE `is_heading` = 1",
+)
+
+private val MIGRATIONS = listOf(SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4)
 
 private class Helper(context: Context) :
     SQLiteOpenHelper(context, Db.NAME, null, VERSION, { }) {

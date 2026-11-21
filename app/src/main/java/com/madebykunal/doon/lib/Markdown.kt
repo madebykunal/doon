@@ -13,7 +13,6 @@ sealed interface InlineNode {
 
 object Markdown {
     private val urlPattern = Pattern.compile("https?://[^\\s<>()]+[^\\s<>().,;:!?'\"]")
-    private val headingPattern = Regex("^#\\s+(.+)$")
     private val safeUrl = Regex("^https?://", RegexOption.IGNORE_CASE)
 
     fun isSafeUrl(url: String): Boolean = safeUrl.containsMatchIn(url)
@@ -96,6 +95,4 @@ object Markdown {
         }
         return walk(parseInline(source))
     }
-
-    fun headingText(source: String): String? = headingPattern.find(source)?.groupValues?.get(1)?.trim()
 }

@@ -130,7 +130,7 @@ private fun ColumnScope.DayPager() {
         }
     }
 
-    val enabled = Editor.editingId == null && Editor.composer == null && !Ui.calendarOpen && RowDrag.draggingId == null
+    val enabled = Editor.composer == null && !Ui.calendarOpen && RowDrag.draggingId == null
     HorizontalPager(
         state = pager,
         modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -161,7 +161,7 @@ private fun DayHeader(date: DateStr) {
                 Dates.format(date, "EEEE, d MMMM").uppercase(),
                 Type.display,
                 maxLines = 1,
-                modifier = Modifier.weight(1f).tap(role = null, label = "Day options", onLongClick = openMenu) {},
+                modifier = Modifier.weight(1f).tap(label = "Go to today", onLongClick = openMenu) { Ui.goToToday() },
             )
             SettingsButton()
         }
@@ -180,7 +180,7 @@ fun WeekStripBar() {
     val state = rememberLazyListState(initialFirstVisibleItemIndex = indexOf(selected) - 2)
     val fling = rememberSnapFlingBehavior(state)
 
-    LaunchedEffect(selected) {
+    LaunchedEffect(selected, Ui.recenter) {
         val target = indexOf(selected) - 2
         if (abs(state.firstVisibleItemIndex - target) > 10) state.scrollToItem(target) else state.animateScrollToItem(target)
     }

@@ -8,7 +8,8 @@ import com.madebykunal.doon.data.Where
 import com.madebykunal.doon.lib.DateStr
 import com.madebykunal.doon.lib.Dates
 import com.madebykunal.doon.lib.Markdown
-import com.madebykunal.doon.lib.ParseRepeat
+import com.madebykunal.doon.lib.SmartInput
+import com.madebykunal.doon.lib.parseTime
 import com.madebykunal.doon.lib.Recurrence
 import com.madebykunal.doon.lib.RepeatRule
 import com.madebykunal.doon.notify.Reminders
@@ -58,7 +59,7 @@ object TodoActions {
     private fun softDeleteWithUndo(todo: Todo) {
         TodoRepo.softDelete(todo.id)
         Reminders.cancelTodo(todo.id)
-        Snack.show(if (todo.isHeading) "Heading deleted" else "To-do deleted") {
+        Snack.show("To-do deleted") {
             TodoRepo.restore(todo.id)
             Reminders.syncTodo(todo.id)
         }
@@ -126,32 +127,41 @@ object TodoActions {
         detachIfSeries(todo)
     }
 
-    fun toggleHeading(id: String) {
-        val todo = TodoRepo.get(id) ?: return
-        TodoRepo.update(id, "is_heading" to !todo.isHeading, "collapsed" to false)
-    }
-
-    fun toggleCollapsed(id: String) {
-        val todo = TodoRepo.get(id) ?: return
-        TodoRepo.update(id, "collapsed" to !todo.collapsed)
+    private fun dayLabel(date: DateStr): String = when (date) {
+        Ui.today -> "today"
+        Dates.addDays(Ui.today, 1) -> "tomorrow"
+        else -> Dates.format(date, "EEE, d MMM")
     }
 
     fun addFromInput(input: String, home: Home, where: Where, keepWords: Boolean = false, note: String = ""): Todo? {
         val text = input.trim()
         if (text.isEmpty()) return null
         val description = note.trim().ifEmpty { null }
-        Markdown.headingText(text)?.let { return TodoRepo.create(home, it, isHeading = true, where = where) }
-        val repeat = if (home is Home.Day && !keepWords) ParseRepeat.parse(text) else null
-        if (repeat != null && home is Home.Day) return startSeries(repeat.text, repeat.rule, home.date, description)
-        return TodoRepo.create(home, text, description, where)
-    }
+        if (keepWords) return TodoRepo.create(home, text, description, where)
+        val base = (home as? Home.Day)?.date ?: Ui.today
+        val smart = SmartInput.parse(text, Ui.today)
+        if (!smart.found) return TodoRepo.create(home, text, description, where)
+        val title = smart.title.ifEmpty { text }
+        val (hour, minute) = parseTime(smart.time)
 
-    private fun startSeries(text: String, rule: RepeatRule, date: DateStr, description: String?): Todo? {
-        val created = SeriesRepo.create(text, rule, date, description = description)
-        SeriesRepo.materialize(date, date)
-        if (Recurrence.occursOn(rule, date, date)) return TodoRepo.items(Home.Day(date)).firstOrNull { it.seriesId == created.id }
-        Snack.show("Added. It starts on its first matching day.")
-        return null
+        val rule = smart.rule
+        if (rule != null) {
+            val from = smart.date ?: base
+            val start = Recurrence.expand(rule, from, null, from, Dates.addDays(from, 400)).firstOrNull() ?: from
+            val series = SeriesRepo.create(title, rule, start, description = description)
+            SeriesRepo.materialize(start, start)
+            val todo = TodoRepo.items(Home.Day(start)).firstOrNull { it.seriesId == series.id }
+            if (todo != null && smart.time != null) Reminders.setTodoReminder(todo.id, Dates.toMillis(start, hour, minute), ask = true)
+            if (home != Home.Day(start)) Snack.show("Repeats from ${dayLabel(start)}")
+            return if (home == Home.Day(start)) todo else null
+        }
+
+        val day = smart.date ?: base
+        val target = if (home is Home.Day) Home.Day(day) else home
+        val todo = TodoRepo.create(target, title, description, if (target == home) where else Where.Bottom)
+        if (smart.time != null || home is Home.InList) Reminders.setTodoReminder(todo.id, Dates.toMillis(day, hour, minute), ask = true)
+        if (target != home) Snack.show("Added to ${dayLabel(day)}")
+        return if (target == home) todo else null
     }
 
     fun saveEdit(id: String, input: String, description: String? = null, keepDescription: Boolean = true) {
@@ -159,10 +169,6 @@ object TodoActions {
         val text = input.trim()
         if (text.isEmpty()) {
             delete(id)
-            return
-        }
-        Markdown.headingText(text)?.let {
-            TodoRepo.update(id, "text" to it, "is_heading" to true, "collapsed" to false)
             return
         }
         val nextDescription = if (keepDescription) todo.description else description?.trim()?.ifEmpty { null }
@@ -189,12 +195,6 @@ object TodoActions {
             return
         }
 
-        val repeat = if (todo.date != null) ParseRepeat.parse(text) else null
-        if (repeat != null && todo.date != null) {
-            val created = SeriesRepo.create(repeat.text, repeat.rule, todo.date, todo.highlight, nextDescription)
-            TodoRepo.update(id, "text" to repeat.text, "description" to nextDescription, "series_id" to created.id, "series_date" to todo.date)
-            return
-        }
         TodoRepo.update(id, "text" to text, "description" to nextDescription)
         Reminders.syncTodo(id)
     }

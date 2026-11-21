@@ -3,6 +3,7 @@ package com.madebykunal.doon.ui.settings
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -85,30 +86,31 @@ fun SettingsScreen() {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             ScreenHeader("Settings", back = true)
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.l), verticalArrangement = Arrangement.spacedBy(Space.xl)) {
-                Section("Accent") {
-                    Column(Modifier.padding(Space.s)) {
-                        val ids = Accents.presets.keys.toList() + "custom"
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                Section("Accent", 0) {
+                    val ids = Accents.presets.keys.toList() + "custom"
+                    Column(Modifier.padding(horizontal = Space.s, vertical = Space.s)) {
                         ids.chunked(6).forEach { row ->
                             Row(Modifier.fillMaxWidth()) {
                                 row.forEach { id ->
                                     Box(
-                                        Modifier.weight(1f).height(52.dp).tap(label = Accents.presets[id]?.first ?: "Custom accent color") {
+                                        Modifier.weight(1f).height(56.dp).tap(label = Accents.presets[id]?.first ?: "Custom accent color") {
                                             if (id == "custom") colorPicker = true else Prefs.setAccent(id)
                                         },
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         val selected = Prefs.accent == id
-                                        if (id == "custom") {
-                                            val (fill, on) = c.accentFor(Prefs.customColor)
-                                            val m = if (selected) Modifier.background(fill, RectangleShape) else Modifier.border(1.5.dp, c.inkMuted, RectangleShape)
-                                            Box(Modifier.size(36.dp).clip(RectangleShape).then(m), contentAlignment = Alignment.Center) {
-                                                Icon(Ic.Pencil, if (selected) on else c.ink, 16.dp)
-                                            }
-                                        } else {
-                                            val (fill, on) = c.accentFor(Accents.presets.getValue(id).second)
-                                            Box(Modifier.size(36.dp).clip(RectangleShape).background(fill), contentAlignment = Alignment.Center) {
-                                                if (selected) Icon(Ic.Check, on, 18.dp, stroke = 3f)
+                                        val (fill, on) = c.accentFor(if (id == "custom") Prefs.customColor else Accents.presets.getValue(id).second)
+                                        val ring = if (selected) Modifier.border(2.dp, c.ink, CircleShape).padding(4.dp) else Modifier
+                                        Box(Modifier.size(40.dp).then(ring), contentAlignment = Alignment.Center) {
+                                            if (id == "custom" && Prefs.accent != "custom") {
+                                                Box(Modifier.fillMaxSize().border(1.5.dp, c.inkMuted, CircleShape), contentAlignment = Alignment.Center) {
+                                                    Icon(Ic.Plus, c.inkMuted, 16.dp)
+                                                }
+                                            } else {
+                                                Box(Modifier.fillMaxSize().background(fill, CircleShape), contentAlignment = Alignment.Center) {
+                                                    if (selected) Icon(Ic.Check, on, 16.dp, stroke = 3f)
+                                                }
                                             }
                                         }
                                     }
@@ -118,32 +120,34 @@ fun SettingsScreen() {
                         }
                     }
                 }
-                Section("Theme") {
-                    Row(Modifier.padding(Space.xs), horizontalArrangement = Arrangement.spacedBy(Space.xs)) {
+                Section("Theme", 1) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = Space.s)) {
                         THEMES.forEach { (mode, label) ->
                             val selected = Prefs.themeMode == mode
-                            Box(
-                                Modifier.weight(1f).heightIn(min = 40.dp).clip(RectangleShape)
-                                    .background(if (selected) c.accentTint else Color.Transparent).tap(label = label) { Prefs.setThemeMode(mode) },
-                                contentAlignment = Alignment.Center,
-                            ) { Txt(label, Type.captionStrong, if (selected) c.accentText else c.inkMuted, maxLines = 1) }
+                            Column(
+                                Modifier.weight(1f).height(60.dp).tap(label = label) { Prefs.setThemeMode(mode) },
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                            ) {
+                                Txt(label.uppercase(), Type.nav, if (selected) c.accentText else c.inkMuted, maxLines = 1, unscaled = true)
+                                Box(Modifier.padding(top = 4.dp).size(5.dp).background(if (selected) c.accentText else Color.Transparent, CircleShape))
+                            }
                         }
                     }
                 }
-                Section("General") {
+                Section("General", 2) {
                     SwitchRow("Roll over unfinished to-dos", Prefs.rollover, "Moves them to today when a new day starts", Prefs::setRollover)
-                    SettingRow("Week starts on", right = { Txt(Dates.format(Dates.addDays("2026-11-01", Prefs.weekStart), "EEEE"), color = c.inkMuted) }) {
+                    SettingRow("Week starts on", right = { Txt(Dates.format(Dates.addDays("2026-11-01", Prefs.weekStart), "EEEE"), Type.secondary, c.accentText) }) {
                         Prefs.setWeekStartsOn((Prefs.weekStart + 1) % 7)
                     }
-                    SwitchRow("Week strip at the top", Prefs.weekStripTop, "Shows the days just under the date instead of above the tabs", Prefs::setWeekStripTop)
-                    SwitchRow("Show to-dos on the widget", Prefs.widgetShowsTodos, "When off, the widget shows only how many", Prefs::setWidgetShowsTodos)
+                    SwitchRow("Week strip at the top", Prefs.weekStripTop, "Shows the days just under the date", Prefs::setWeekStripTop)
                 }
                 RemindersSection()
-                Section("About") {
-                    SettingRow("Version", right = { Txt(BuildConfig.VERSION_NAME, color = c.inkMuted) })
+                Section("About", 4) {
+                    SettingRow("Version", right = { Txt(BuildConfig.VERSION_NAME, Type.secondary, c.inkMuted) })
                 }
                 if (BuildConfig.DEBUG) {
-                    Section("Developer") {
+                    Section("Developer", 5) {
                         SettingRow("Seed performance data", "2 000 to-dos, 30 lists, 50 countdowns") {
                             Seed.performance(Ui.today)
                             Snack.show("Seeded")
@@ -170,8 +174,8 @@ private fun RemindersSection() {
     val exact = Reminders.canExact()
     val fullScreen = Reminders.canFullScreen()
     val overlay = Reminders.canOverlay()
-    val action = @Composable { label: String -> Txt(label, color = c.accentText) }
-    Section("Reminders") {
+    val action = @Composable { label: String -> Txt(label, Type.secondaryStrong, c.accentText) }
+    Section("Reminders", 3) {
         if (!exact) SettingRow("Ring on the minute", "Allow alarms so Android doesn’t hold reminders back", right = { action("Allow") }) { Reminders.openExactAlarmSettings() }
         SwitchRow("Full-screen alerts", Prefs.fullScreenAlerts, "Reminders wake the screen and show over other apps") { on ->
             Prefs.setFullScreenAlerts(on)
@@ -185,14 +189,11 @@ private fun RemindersSection() {
 }
 
 @Composable
-private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
+private fun Section(title: String, index: Int, content: @Composable ColumnScope.() -> Unit) {
     val c = colors
-    Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {
-        Txt(title.uppercase(), Type.label, c.inkMuted, Modifier.padding(horizontal = GUTTER - Space.l))
-        Column(
-            Modifier.fillMaxWidth().clip(RectangleShape).background(c.surface).border(1.dp, c.hairline, RectangleShape),
-            content = content,
-        )
+    Column(Modifier.fillMaxWidth().background(if (index % 2 == 0) c.bg else c.surface).padding(top = Space.l, bottom = Space.s)) {
+        Txt(title.uppercase(), Type.label, c.inkMuted, Modifier.padding(horizontal = GUTTER).padding(bottom = Space.xs))
+        content()
     }
 }
 
@@ -202,7 +203,7 @@ private fun SettingRow(label: String, detail: String? = null, right: (@Composabl
     var m = Modifier.fillMaxWidth()
     if (onClick != null) m = m.tap(pressedColor = c.hairline, onClick = onClick)
     Row(
-        m.heightIn(min = ROW_MIN_HEIGHT).hairlineTop(c.hairline).padding(horizontal = Space.l, vertical = 10.dp),
+        m.heightIn(min = 60.dp).padding(horizontal = GUTTER, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.m),
     ) {

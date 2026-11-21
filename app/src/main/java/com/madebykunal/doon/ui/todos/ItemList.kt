@@ -69,30 +69,8 @@ import kotlinx.coroutines.launch
 data class DisplayItem(val todo: Todo, val count: Int)
 
 fun arrange(items: List<Todo>, hideCompleted: Boolean, sinkCompleted: Boolean): List<DisplayItem> {
-    val shown = mutableListOf<DisplayItem>()
-    val sunk = mutableListOf<DisplayItem>()
-    var headingIndex = -1
-    var headingCount = 0
-    fun closeHeading() {
-        if (headingIndex >= 0) shown[headingIndex] = shown[headingIndex].copy(count = headingCount)
-    }
-    for (todo in items) {
-        if (todo.isHeading) {
-            closeHeading()
-            shown.add(DisplayItem(todo, 0))
-            headingIndex = shown.size - 1
-            headingCount = 0
-            continue
-        }
-        val done = todo.completed
-        if (!done && headingIndex >= 0) headingCount++
-        if (done && hideCompleted) continue
-        val entry = DisplayItem(todo, 0)
-        if (done && sinkCompleted) sunk.add(entry)
-        else if (headingIndex < 0 || !shown[headingIndex].todo.collapsed) shown.add(entry)
-    }
-    closeHeading()
-    return shown + sunk
+    val shown = items.filter { !(hideCompleted && it.completed) }.map { DisplayItem(it, 0) }
+    return if (sinkCompleted) shown.filter { !it.todo.completed } + shown.filter { it.todo.completed } else shown
 }
 
 object RowDrag {
@@ -297,7 +275,7 @@ fun ItemList(home: Home, rightLabel: String, onSwipeRight: (String) -> Unit, emp
                         val last = state.layoutInfo.visibleItemsInfo.lastOrNull { (it.key as? String)?.startsWith("__") == false }
                         val end = if (last == null) 0 else last.offset + last.size
                         if (pos.y <= end) return@detectTapGestures
-                        if (Editor.editingId != null || Editor.composer != null) Editor.commitAll()
+                        if (Editor.composer != null) Editor.commitAll()
                         else Editor.openComposer(home, Where.Bottom)
                     }
                 }
@@ -309,7 +287,6 @@ fun ItemList(home: Home, rightLabel: String, onSwipeRight: (String) -> Unit, emp
                             } ?: return@detectDragGesturesAfterLongPress
                             val id = hit.key as String
                             val item = latest.firstOrNull { it.todo.id == id } ?: return@detectDragGesturesAfterLongPress
-                            Editor.stopEditing()
                             dragOrder = latest
                             dragKey = id
                             grabY = offset.y - hit.offset

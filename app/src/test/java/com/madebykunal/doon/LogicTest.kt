@@ -73,7 +73,6 @@ class LogicTest {
         assertEquals(InlineNode.Styled(InlineNode.Style.Bold, listOf(InlineNode.Text("Call"))), nodes[0])
         assertTrue(nodes.none { it is InlineNode.Link && !Markdown.isSafeUrl(it.url) })
         assertEquals(InlineNode.Link("https://example.com/x", "https://example.com/x"), nodes.first { it is InlineNode.Link })
-        assertEquals("Plan trip", Markdown.headingText("# Plan trip"))
         assertEquals("Call mum", Markdown.plainText("*Call* `mum`"))
     }
 

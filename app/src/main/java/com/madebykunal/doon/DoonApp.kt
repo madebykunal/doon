@@ -26,7 +26,7 @@ class DoonApp : Application() {
         ready = true
         runCatching { ListRepo.seedDefaults() }
         Live.listen { tables -> if (T.TODOS in tables || T.COUNTDOWNS in tables) Widgets.requestSync() }
-        Prefs.listen { key -> if (key == "accent" || key == "customColor" || key == "widgetShowsTodos") Widgets.requestSync() }
+        Prefs.listen { key -> if (key == "accent" || key == "customColor") Widgets.requestSync() }
         if (Prefs.rollover) TodoRepo.rollover(Dates.today())
         Reminders.resyncAll()
     }

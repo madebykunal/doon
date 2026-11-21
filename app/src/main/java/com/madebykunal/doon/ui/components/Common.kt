@@ -19,6 +19,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -172,7 +173,7 @@ fun SettingsButton() = HeaderButton(Ic.Menu, "Menu", 24.dp) { Nav.push(Route.Set
 @Composable
 fun ScreenHeader(title: String, back: Boolean = false, onTitle: (() -> Unit)? = null, right: @Composable RowScope.() -> Unit = {}) {
     Row(
-        Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(top = Space.s, bottom = Space.m).padding(horizontal = GUTTER),
+        Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).height(72.dp).padding(start = Space.l, end = Space.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (back) {
@@ -191,8 +192,8 @@ fun Toggle(value: Boolean) {
     val off = colors.inkMuted.copy(alpha = 0.3f)
     val on = colors.accent
     val track = lerp(off, on, p)
-    Box(Modifier.size(46.dp, 28.dp).clip(RectangleShape).background(track).padding(3.dp)) {
-        Box(Modifier.offset(x = 18.dp * p).size(22.dp).shadow(2.dp, RectangleShape).background(Color.White, RectangleShape))
+    Box(Modifier.size(46.dp, 28.dp).clip(CircleShape).background(track).padding(3.dp)) {
+        Box(Modifier.offset(x = 18.dp * p).size(22.dp).shadow(2.dp, CircleShape).background(Color.White, CircleShape))
     }
 }
 

@@ -3,6 +3,8 @@ package com.madebykunal.doon.ui
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -87,7 +89,6 @@ import com.madebykunal.doon.ui.theme.Type
 import com.madebykunal.doon.ui.theme.colors
 import com.madebykunal.doon.ui.today.TodayScreen
 import com.madebykunal.doon.ui.todos.DragGhost
-import com.madebykunal.doon.ui.todos.EditToolbar
 import kotlinx.coroutines.delay
 
 fun pressPlus() {
@@ -152,7 +153,6 @@ fun App() {
                 else -> Shell(imeVisible)
             }
         }
-        EditToolbar()
         DragGhost()
         QuickAdd()
         SheetHost { SheetContent(it) }
@@ -199,7 +199,8 @@ private fun BottomNav() {
                 verticalArrangement = Arrangement.Center,
             ) {
                 Txt(label.uppercase(), Type.nav, c.onAccentDeep, maxLines = 1, unscaled = true)
-                Box(Modifier.padding(top = 4.dp).size(5.dp).background(if (selected) c.onAccentDeep else Color.Transparent, CircleShape))
+                val dot by animateFloatAsState(if (selected) 1f else 0f, tween(200), label = "dot")
+                Box(Modifier.padding(top = 4.dp).size(5.dp).graphicsLayer { scaleX = dot; scaleY = dot; alpha = dot }.background(c.onAccentDeep, CircleShape))
             }
         }
     }
@@ -217,9 +218,13 @@ private fun Tabs() {
                 val (fromTab, _, fromDepth) = initialState
                 val (toTab, _, toDepth) = targetState
                 when {
-                    fromTab != toTab || fromDepth == toDepth -> fadeIn(tween(160)) togetherWith fadeOut(tween(120))
-                    toDepth > fromDepth -> slideInHorizontally(tween(220)) { it } togetherWith fadeOut(tween(220))
-                    else -> fadeIn(tween(160)) togetherWith slideOutHorizontally(tween(200)) { it }
+                    fromTab != toTab -> {
+                        val dir = if (toTab > fromTab) 1 else -1
+                        (slideInHorizontally(tween(220)) { it * dir / 8 } + fadeIn(tween(220))) togetherWith (slideOutHorizontally(tween(180)) { -it * dir / 8 } + fadeOut(tween(140)))
+                    }
+                    fromDepth == toDepth -> fadeIn(tween(160)) togetherWith fadeOut(tween(120))
+                    toDepth > fromDepth -> (slideInHorizontally(tween(240)) { it / 3 } + fadeIn(tween(200))) togetherWith (slideOutHorizontally(tween(240)) { -it / 6 } + fadeOut(tween(180)))
+                    else -> (slideInHorizontally(tween(240)) { -it / 6 } + fadeIn(tween(200))) togetherWith (slideOutHorizontally(tween(220)) { it / 3 } + fadeOut(tween(180)))
                 }
             },
             label = "tabs",

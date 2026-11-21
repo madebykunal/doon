@@ -204,7 +204,7 @@ object Widgets {
         v.color(context, R.id.label, "setTextColor", p.accentLight, p.accentDark)
         v.setTextViewText(R.id.count, open.size.toString())
         val fit = minOf(MAX_ROWS, maxOf(3, (height - 60) / 36))
-        val rows = if (Prefs.widgetShowsTodos) open.take(fit) else emptyList()
+        val rows = open.take(fit)
         v.setViewVisibility(R.id.empty, if (rows.isEmpty()) View.VISIBLE else View.GONE)
         v.setTextViewText(R.id.empty, if (open.isNotEmpty()) "Open Doon to see them" else "Nothing planned today")
         todoRows.forEachIndexed { i, ids ->
