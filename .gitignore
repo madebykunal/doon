@@ -13,3 +13,4 @@ captures/
 *.key
 .DS_Store
 .env*.local
+keystore.properties
