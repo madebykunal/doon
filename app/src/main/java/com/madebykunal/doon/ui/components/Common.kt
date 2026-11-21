@@ -168,17 +168,17 @@ fun HeaderButton(ic: Ic, label: String, size: Dp = 20.dp, onClick: () -> Unit) {
 }
 
 @Composable
-fun SettingsButton() = HeaderButton(Ic.Menu, "Menu", 24.dp) { Nav.push(Route.Settings) }
+fun SettingsButton() = HeaderButton(Ic.ChevronDown, "Settings", 26.dp) { Nav.push(Route.Settings) }
 
 @Composable
-fun ScreenHeader(title: String, back: Boolean = false, onTitle: (() -> Unit)? = null, right: @Composable RowScope.() -> Unit = {}) {
+fun ScreenHeader(title: String, back: Boolean = false, onTitle: (() -> Unit)? = null, backIcon: Ic = Ic.ChevronLeft, right: @Composable RowScope.() -> Unit = {}) {
     Row(
         Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).height(72.dp).padding(start = Space.l, end = Space.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (back) {
             Box(Modifier.offset(x = (-6).dp).size(34.dp, HIT_TARGET).tap(label = "Back") { Nav.popScreen() }, contentAlignment = Alignment.CenterStart) {
-                Icon(Ic.ChevronLeft, colors.ink, 26.dp)
+                Icon(backIcon, colors.ink, 26.dp)
             }
         }
         Txt(title.uppercase(), Type.display, maxLines = 1, modifier = Modifier.weight(1f).then(if (onTitle != null) Modifier.tap(label = "Edit", onClick = onTitle) else Modifier))

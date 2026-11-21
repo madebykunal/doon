@@ -40,6 +40,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
@@ -157,8 +159,15 @@ fun App() {
         AnimatedContent(
             targetState = Nav.overlay.size to overlay,
             transitionSpec = {
-                if (targetState.first > initialState.first) (slideInHorizontally(tween(220)) { it } togetherWith fadeOut(tween(220)))
-                else (fadeIn(tween(160)) togetherWith slideOutHorizontally(tween(200)) { it })
+                val from = initialState.first
+                val to = targetState.first
+                val ease = androidx.compose.animation.core.FastOutSlowInEasing
+                when {
+                    to > from && from == 0 -> slideInVertically(tween(320, easing = ease)) { -it } togetherWith fadeOut(tween(260))
+                    to < from && to == 0 -> fadeIn(tween(220)) togetherWith slideOutVertically(tween(280, easing = ease)) { -it }
+                    to > from -> slideInHorizontally(tween(220)) { it } togetherWith fadeOut(tween(220))
+                    else -> fadeIn(tween(160)) togetherWith slideOutHorizontally(tween(200)) { it }
+                }
             },
             label = "overlay",
         ) { (_, route) ->

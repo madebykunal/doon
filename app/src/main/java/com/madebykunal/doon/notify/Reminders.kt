@@ -13,6 +13,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
@@ -66,17 +67,60 @@ object Reminders {
         if (!hasPermission()) requestPermission?.invoke()
     }
 
+    const val SILENT = "silent"
+
+    private fun soundOf(base: String): String = if (base == CH_COUNTDOWNS) Prefs.countdownSound else Prefs.taskSound
+
+    private fun channelId(base: String): String {
+        val pref = soundOf(base)
+        return if (pref.isEmpty()) base else "$base.${Integer.toHexString(pref.hashCode())}"
+    }
+
     private fun ensureChannels() {
-        val sound = { raw: Int -> Uri.parse("android.resource://${ctx.packageName}/$raw") }
         val audio = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
-        fun channel(id: String, name: String, importance: Int, raw: Int) = NotificationChannel(id, name, importance).apply { setSound(sound(raw), audio) }
-        notifications.createNotificationChannels(
-            listOf(
-                channel(CH_TASKS, "To-do reminders", NotificationManager.IMPORTANCE_HIGH, R.raw.tasks_notification),
-                channel(CH_COUNTDOWNS, "Countdowns", NotificationManager.IMPORTANCE_HIGH, R.raw.countdown_notification),
-                channel(CH_DIGEST, "Morning digest", NotificationManager.IMPORTANCE_DEFAULT, R.raw.tasks_notification),
-            ),
+        fun channel(base: String, name: String, importance: Int, raw: Int): NotificationChannel {
+            val pref = soundOf(base)
+            val uri = when (pref) {
+                "" -> Uri.parse("android.resource://${ctx.packageName}/$raw")
+                SILENT -> null
+                else -> Uri.parse(pref)
+            }
+            return NotificationChannel(channelId(base), name, importance).apply { setSound(uri, if (uri == null) null else audio) }
+        }
+        val wanted = listOf(
+            channel(CH_TASKS, "To-do reminders", NotificationManager.IMPORTANCE_HIGH, R.raw.tasks_notification),
+            channel(CH_COUNTDOWNS, "Countdowns", NotificationManager.IMPORTANCE_HIGH, R.raw.countdown_notification),
+            channel(CH_DIGEST, "Morning digest", NotificationManager.IMPORTANCE_DEFAULT, R.raw.tasks_notification),
         )
+        val keep = wanted.map { it.id }.toSet()
+        notifications.notificationChannels.forEach { existing ->
+            val stale = existing.id !in keep && listOf(CH_TASKS, CH_COUNTDOWNS, CH_DIGEST).any { existing.id == it || existing.id.startsWith("$it.") }
+            if (stale) notifications.deleteNotificationChannel(existing.id)
+        }
+        notifications.createNotificationChannels(wanted)
+    }
+
+    fun soundsChanged() = ensureChannels()
+
+    fun soundName(pref: String, doonName: String): String = when (pref) {
+        "" -> doonName
+        SILENT -> "Silent"
+        else -> runCatching { RingtoneManager.getRingtone(ctx, Uri.parse(pref))?.getTitle(ctx) }.getOrNull() ?: "Custom sound"
+    }
+
+    var launchPicker: ((Intent, (Intent?) -> Unit) -> Unit)? = null
+
+    fun pickSound(current: String, onPicked: (String) -> Unit) {
+        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
+            .putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION or RingtoneManager.TYPE_ALARM)
+            .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+            .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+            .putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, if (current.isEmpty() || current == SILENT) null else Uri.parse(current))
+        launchPicker?.invoke(intent) { data ->
+            @Suppress("DEPRECATION")
+            val uri = data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) ?: return@invoke
+            onPicked(uri.toString())
+        }
     }
 
     private fun alarmIntent(action: String, key: String, flags: Int = PendingIntent.FLAG_UPDATE_CURRENT): PendingIntent? =
@@ -250,7 +294,7 @@ object Reminders {
     private fun post(channel: String, nid: Int, title: String, body: String, open: PendingIntent, alert: Intent?) {
         ensureChannels()
         if (!hasPermission()) return
-        val builder = Notification.Builder(ctx, channel)
+        val builder = Notification.Builder(ctx, channelId(channel))
             .setSmallIcon(R.drawable.ic_stat)
             .setContentTitle(title)
             .setContentText(body)

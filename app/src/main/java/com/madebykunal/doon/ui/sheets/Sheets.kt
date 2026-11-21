@@ -1,5 +1,7 @@
 package com.madebykunal.doon.ui.sheets
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.background
 import androidx.compose.animation.core.animateFloatAsState
@@ -480,11 +482,31 @@ private fun ReorderFoldersSheet() {
 }
 
 private val COUNTDOWN_KINDS = listOf(
-    Triple("until", "Until", "A one-off date"),
-    Triple("yearly", "Yearly", "Birthdays, anniversaries. Shows the age they’ll turn"),
-    Triple("monthly", "Monthly", "Rent day, pay day"),
-    Triple("since", "Since", "Counts up from a date"),
+    Triple("until", "Once", "Counts down to one date"),
+    Triple("yearly", "Yearly", "Comes back every year. Birthdays show the age they’ll turn"),
+    Triple("monthly", "Monthly", "Comes back every month, like pay day"),
+    Triple("since", "Since", "Counts up from a day that has passed"),
 )
+
+private val YEARLY_WORDS = listOf("birthday", "bday", "anniversary", "jayanti")
+
+@Composable
+private fun EditorLabel(text: String) {
+    Txt(text.uppercase(), Type.label, colors.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.xxl, bottom = Space.s))
+}
+
+@Composable
+private fun BlockChoice(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val c = colors
+    val fill by animateColorAsState(if (selected) c.accent else Color.Transparent, tween(160), label = "choice")
+    Box(
+        modifier.heightIn(min = 44.dp).background(fill).border(1.dp, if (selected) c.accent else c.hairline)
+            .tap(label = label, onClick = onClick).padding(horizontal = Space.s, vertical = Space.s),
+        contentAlignment = Alignment.Center,
+    ) {
+        Txt(label.uppercase(), Type.nav.copy(fontSize = 17.sp, lineHeight = 20.sp), if (selected) c.onAccent else c.ink, maxLines = 2, align = TextAlign.Center, unscaled = true)
+    }
+}
 
 @Composable
 private fun CountdownEditorSheet(id: String?) {
@@ -493,8 +515,9 @@ private fun CountdownEditorSheet(id: String?) {
     val today = Ui.today
     val existing = remember { id?.let { CountdownRepo.get(it) } }
     var title by remember { mutableStateOf(existing?.title ?: "") }
-    var emoji by remember { mutableStateOf(existing?.emoji ?: "🎉") }
+    val emoji = existing?.emoji ?: "🎉"
     var kind by remember { mutableStateOf(existing?.kind ?: "until") }
+    var kindChosen by remember { mutableStateOf(existing != null) }
     var targetDate by remember { mutableStateOf(existing?.targetDate ?: today) }
     var hasTime by remember { mutableStateOf(existing?.targetTime != null) }
     var time by remember { mutableStateOf(existing?.targetTime ?: "09:00") }
@@ -520,39 +543,73 @@ private fun CountdownEditorSheet(id: String?) {
         Reminders.syncCountdown(savedId, ask = true)
         close()
     }
+    val ready = title.isNotBlank()
 
-    SheetFrame(if (existing != null) "Edit countdown" else "New countdown", tall = true, action = Triple("Save", title.isNotBlank(), save)) {
-        NameRow(null, null) { Field(title, { title = it }, "Title", Modifier.fillMaxWidth(), autoFocus = existing == null) }
-        SectionLabel("Type")
-        COUNTDOWN_KINDS.forEach { (k, label, help) -> OptionRow(label, help, selected = kind == k) { kind = k } }
-        SectionLabel(if (kind == "since") "Started on" else "Date")
+    SheetFrame(if (existing != null) "Edit countdown" else "New countdown", tall = true, action = Triple("Save", ready, save)) {
+        Field(
+            title,
+            {
+                title = it
+                if (!kindChosen && kind == "until" && YEARLY_WORDS.any { w -> it.contains(w, ignoreCase = true) }) kind = "yearly"
+            },
+            "What’s coming up?",
+            Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.s),
+            style = Type.display.copy(fontSize = 26.sp, lineHeight = 32.sp),
+            autoFocus = existing == null,
+        )
+
+        EditorLabel("Type")
+        Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            COUNTDOWN_KINDS.forEach { (k, label, _) ->
+                BlockChoice(label, kind == k, Modifier.weight(1f)) {
+                    kind = k
+                    kindChosen = true
+                }
+            }
+        }
+        Txt(COUNTDOWN_KINDS.first { it.first == kind }.third, Type.caption, c.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.s))
+
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.xxl),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(Space.m),
+        ) {
+            Txt(counted.value.removeSuffix(" 🎉").uppercase(), Type.display.copy(fontSize = 56.sp, lineHeight = 58.sp), c.accentText, maxLines = 1, tabularNums = true, unscaled = true)
+            Column(Modifier.weight(1f).padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                if (counted.unit.isNotEmpty()) Txt(counted.unit.uppercase(), Type.nav, c.ink, maxLines = 1, unscaled = true)
+                Txt("${CountdownMath.dateLine(draft, today)} ${CountdownMath.titleWithAge(draft, "", today).trim()}".trim(), Type.caption, c.inkMuted, maxLines = 2)
+            }
+        }
+
+        EditorLabel(if (kind == "since") "Started on" else "Date")
         DatePicker(targetDate, {
             targetDate = it
             if (kind == "until" && it < today) kind = "yearly"
         })
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.s, bottom = Space.xs).clip(RectangleShape).background(c.accentTint)
-                .padding(horizontal = Space.m, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Space.m),
-        ) {
-            Txt(counted.value + if (counted.unit.isNotEmpty()) " ${counted.unit}" else "", Type.secondaryStrong, c.accentText, tabularNums = true)
-            Txt(
-                "${CountdownMath.dateLine(draft, today)} ${CountdownMath.titleWithAge(draft, "", today).trim()}".trim(),
-                Type.caption, c.accentText, Modifier.weight(1f), maxLines = 2, align = TextAlign.End,
-            )
-        }
         if (kind == "until") {
             SwitchOptionRow("Add a time", hasTime) { hasTime = it }
             if (hasTime) Box(Modifier.padding(vertical = Space.s)) { TimePicker(time) { time = it } }
         }
-        SectionLabel("Show")
-        SwitchOptionRow("In the home-screen widget", showInWidget) { showInWidget = it }
+
         if (kind != "since") {
-            SectionLabel("Notify me")
-            CountdownMath.alerts.forEach { (offset, label) ->
-                SwitchOptionRow(label, offset in notify) { notify = if (offset in notify) notify - offset else notify + offset }
+            EditorLabel("Remind me")
+            Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                CountdownMath.alerts.forEach { (offset, label) ->
+                    BlockChoice(label, offset in notify, Modifier.weight(1f)) { notify = if (offset in notify) notify - offset else notify + offset }
+                }
             }
+        }
+
+        Box(Modifier.padding(top = Space.l)) {
+            SwitchOptionRow("Show on the home-screen widget", showInWidget) { showInWidget = it }
+        }
+
+        Box(
+            Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.l).heightIn(min = 56.dp)
+                .background(if (ready) c.accent else c.hairline).tap(enabled = ready, label = "Save", onClick = save),
+            contentAlignment = Alignment.Center,
+        ) {
+            Txt(if (existing != null) "SAVE CHANGES" else "ADD COUNTDOWN", Type.nav, if (ready) c.onAccent else c.inkMuted, unscaled = true)
         }
     }
 }

@@ -39,12 +39,21 @@ import java.io.File
 
 class MainActivity : ComponentActivity() {
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private var onPicked: ((Intent?) -> Unit)? = null
+    private val picker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) onPicked?.invoke(result.data)
+        onPicked = null
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         Reminders.requestPermission = {
             if (Build.VERSION.SDK_INT >= 33) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        Reminders.launchPicker = { intent, done ->
+            onPicked = done
+            runCatching { picker.launch(intent) }
         }
         DoonApp.clearRecoveryFiles()
         if (savedInstanceState == null) handle(intent)
@@ -85,6 +94,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         Reminders.requestPermission = null
+        Reminders.launchPicker = null
     }
 
     private fun handle(intent: Intent?) {

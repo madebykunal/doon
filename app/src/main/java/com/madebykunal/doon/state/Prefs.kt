@@ -67,6 +67,13 @@ object Prefs {
     var fullScreenAlerts by mutableStateOf(false)
         private set
 
+    @set:JvmName("assign_taskSound")
+    var taskSound by mutableStateOf("")
+        private set
+    @set:JvmName("assign_countdownSound")
+    var countdownSound by mutableStateOf("")
+        private set
+
     val weekStart: Int get() = weekStartsOn ?: Dates.localeWeekStart()
 
     fun load(context: Context) {
@@ -90,6 +97,8 @@ object Prefs {
         defaultCountdownAlerts = prefs.getString("defaultCountdownAlerts", null)
             ?.split(",")?.mapNotNull { it.toIntOrNull() } ?: defaultCountdownAlerts
         fullScreenAlerts = prefs.getBoolean("fullScreenAlerts", fullScreenAlerts)
+        taskSound = prefs.getString("taskSound", taskSound)!!
+        countdownSound = prefs.getString("countdownSound", countdownSound)!!
     }
 
     fun listen(listener: (String) -> Unit) {
@@ -120,4 +129,6 @@ object Prefs {
     fun setDigestTime(v: String) { digestTime = v; saved("digestTime") { putString("digestTime", v) } }
     fun setDefaultCountdownAlerts(v: List<Int>) { defaultCountdownAlerts = v; saved("defaultCountdownAlerts") { putString("defaultCountdownAlerts", v.joinToString(",")) } }
     fun setFullScreenAlerts(v: Boolean) { fullScreenAlerts = v; saved("fullScreenAlerts") { putBoolean("fullScreenAlerts", v) } }
+    fun setTaskSound(v: String) { taskSound = v; saved("taskSound") { putString("taskSound", v) } }
+    fun setCountdownSound(v: String) { countdownSound = v; saved("countdownSound") { putString("countdownSound", v) } }
 }

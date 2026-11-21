@@ -55,6 +55,8 @@ import com.madebykunal.doon.lib.CountdownMath
 import com.madebykunal.doon.lib.Dates
 import com.madebykunal.doon.notify.Reminders
 import com.madebykunal.doon.state.DialogAction
+import androidx.compose.foundation.layout.widthIn
+import com.madebykunal.doon.state.Dialogs
 import com.madebykunal.doon.state.Prefs
 import com.madebykunal.doon.state.Snack
 import com.madebykunal.doon.state.Ui
@@ -103,7 +105,7 @@ fun SettingsScreen() {
     Ui.resumes
     val missing = missingPermissions()
     Column(Modifier.fillMaxSize()) {
-        ScreenHeader("Settings", back = true)
+        ScreenHeader("Settings", back = true, backIcon = Ic.ChevronUp)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = Space.s)) {
             categories.forEachIndexed { i, (id, label) ->
                 val shown = remember { Animatable(0f) }
@@ -184,10 +186,34 @@ private fun GeneralPage() {
         if (on && !Reminders.canFullScreen()) Reminders.openFullScreenSettings()
         else if (on && !Reminders.canOverlay()) Reminders.requestOverlay()
     }
+    SubLabel("Sounds")
+    SoundRow("To-do reminders", "Doon chime", Prefs.taskSound, Prefs::setTaskSound)
+    SoundRow("Countdowns", "Doon bell", Prefs.countdownSound, Prefs::setCountdownSound)
     if (missingPermissions() > 0) {
         SettingRow("Some permissions are off", "Reminders may be late or quiet", right = { Txt("Review", Type.secondaryStrong, c.accentText) }) {
             Nav.push(Route.SettingsPage("permissions"))
         }
+    }
+}
+
+@Composable
+private fun SoundRow(label: String, doonName: String, value: String, set: (String) -> Unit) {
+    val c = colors
+    val name = remember(value) { Reminders.soundName(value, doonName) }
+    val apply = { v: String ->
+        set(v)
+        Reminders.soundsChanged()
+    }
+    SettingRow(label, right = { Txt(name, Type.secondary, c.accentText, Modifier.widthIn(max = 160.dp), maxLines = 1) }) {
+        Dialogs.show(
+            "$label sound",
+            actions = listOf(
+                DialogAction("Choose from phone", "primary") { Reminders.pickSound(value) { apply(it) } },
+                DialogAction(doonName) { apply("") },
+                DialogAction("Silent") { apply(Reminders.SILENT) },
+                DialogAction("Cancel", "cancel"),
+            ),
+        )
     }
 }
 
