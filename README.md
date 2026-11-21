@@ -13,3 +13,21 @@ Open the folder in Android Studio, or from a terminal:
 ```
 
 All data stays on the device in SQLite. The app has no network permission.
+
+## Project layout
+
+```
+app/src/main/java/com/madebykunal/doon/
+  DoonApp.kt, MainActivity.kt   app start-up and the single activity
+  data/      SQLite database, models and repositories (all SQL lives here)
+  lib/       pure logic: dates, repeat rules, countdown and habit maths, markdown, colours
+  state/     settings, navigation, editor, dialogs, snackbar and to-do actions
+  notify/    reminders, alarms, morning digest and the full-screen alert
+  widget/    the three home-screen widgets
+  ui/        Compose screens: today, todos, lists, countdowns, habits, settings, sheets
+    components/  shared pieces (dock, sheets, pickers, icons)
+    theme/       colours, type and spacing
+app/src/main/res/   fonts, sounds, icons, widget layouts
+app/src/test/       unit tests for the logic in lib/
+licenses/           font licences
+```
