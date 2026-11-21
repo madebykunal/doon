@@ -1,12 +1,15 @@
 package com.madebykunal.doon.ui.countdowns
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,7 +19,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -24,12 +28,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.madebykunal.doon.data.Countdown
@@ -55,6 +61,7 @@ import com.madebykunal.doon.ui.components.Ic
 import com.madebykunal.doon.ui.components.Odometer
 import com.madebykunal.doon.ui.components.ScreenHeader
 import com.madebykunal.doon.ui.components.SettingsButton
+import com.madebykunal.doon.ui.components.Toggle
 import com.madebykunal.doon.ui.components.Txt
 import com.madebykunal.doon.ui.components.dockInset
 import com.madebykunal.doon.ui.components.hairlineBottom
@@ -67,8 +74,59 @@ import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.Period
 import kotlin.math.ceil
+import kotlin.math.roundToLong
 
 val EMOJI_STYLE = Type.title.copy(fontSize = 40.sp, lineHeight = 52.sp)
+
+private val BUCKETS = listOf("Next 7 days", "Within a month", "Next 3 months", "Later", "Counting up")
+
+private fun bucketOf(item: Countdown, today: DateStr): String {
+    if (item.kind == "since") return "Counting up"
+    val days = CountdownMath.daysUntil(item.dates, today)
+    return when {
+        days <= 7 -> "Next 7 days"
+        days <= 31 -> "Within a month"
+        days <= 92 -> "Next 3 months"
+        else -> "Later"
+    }
+}
+
+private fun waitProgress(item: Countdown, today: DateStr): Float? {
+    if (item.kind == "since" || CountdownMath.isPast(item.dates, today)) return null
+    val grid = CountdownMath.dotGrid(item.dates, Dates.dateOfMillis(item.createdAt), today)
+    val span = grid.elapsedDays + grid.remainingDays
+    return if (span <= 0) 1f else grid.elapsedDays.toFloat() / span
+}
+
+private fun confirmDelete(item: Countdown, leave: Boolean) {
+    Dialogs.show(
+        "Delete this countdown?",
+        item.title,
+        listOf(
+            DialogAction("Delete", "destructive") {
+                CountdownRepo.softDelete(item.id)
+                Reminders.syncCountdown(item.id)
+                if (leave) Nav.popScreen()
+                Snack.show("Countdown deleted") {
+                    CountdownRepo.restore(item.id)
+                    Reminders.syncCountdown(item.id)
+                }
+            },
+            DialogAction("Cancel", "cancel"),
+        ),
+    )
+}
+
+private fun showActions(item: Countdown) {
+    Dialogs.show(
+        item.title,
+        actions = listOf(
+            DialogAction("Edit", "primary") { Nav.openSheet(SheetRoute.CountdownEditor(item.id)) },
+            DialogAction("Delete", "destructive") { confirmDelete(item, leave = false) },
+            DialogAction("Cancel", "cancel"),
+        ),
+    )
+}
 
 @Composable
 fun CountdownsScreen() {
@@ -79,6 +137,8 @@ fun CountdownsScreen() {
     var pastOpen by remember { mutableStateOf(false) }
     val upcoming = CountdownMath.sort(data.filter { !CountdownMath.isPast(it.dates, today) }, today) { it.dates }
     val past = if (Prefs.soonShowPast) data.filter { CountdownMath.isPast(it.dates, today) }.sortedByDescending { it.targetDate } else emptyList()
+    val next = upcoming.firstOrNull { it.kind != "since" } ?: upcoming.firstOrNull()
+    val groups = (upcoming - setOfNotNull(next)).groupBy { bucketOf(it, today) }
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Soon") { SettingsButton() }
         if (upcoming.isEmpty() && past.isEmpty()) {
@@ -86,11 +146,16 @@ fun CountdownsScreen() {
             return@Column
         }
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = dockInset())) {
-            items(upcoming, key = { it.id }) { CountdownRow(it, today, Modifier.animateItem()) }
+            if (next != null) item("next:${next.id}") { NextUp(next, today, Modifier.animateItem()) }
+            BUCKETS.forEach { bucket ->
+                val rows = groups[bucket] ?: return@forEach
+                item("h:$bucket") { GroupLabel(bucket, Modifier.animateItem()) }
+                items(rows, key = { it.id }) { CountdownRow(it, today, Modifier.animateItem()) }
+            }
             if (past.isNotEmpty()) {
                 item("past") {
                     Row(
-                        Modifier.fillMaxWidth().padding(top = Space.l).heightIn(min = 48.dp).tap(label = "Past, ${past.size}") { pastOpen = !pastOpen }.padding(horizontal = GUTTER),
+                        Modifier.animateItem().fillMaxWidth().padding(top = Space.l).heightIn(min = 48.dp).tap(label = "Past, ${past.size}") { pastOpen = !pastOpen }.padding(horizontal = GUTTER),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Txt("PAST", Type.label, c.inkMuted, Modifier.weight(1f))
@@ -104,25 +169,75 @@ fun CountdownsScreen() {
 }
 
 @Composable
+private fun GroupLabel(text: String, modifier: Modifier) {
+    Txt(text.uppercase(), Type.label, colors.inkMuted, modifier.padding(horizontal = GUTTER).padding(top = Space.xxl, bottom = Space.xs))
+}
+
+@Composable
+private fun NextUp(item: Countdown, today: String, modifier: Modifier) {
+    val c = colors
+    val display = CountdownMath.display(item.dates, today)
+    val progress = waitProgress(item, today)
+    val fill = remember(item.id) { Animatable(0f) }
+    LaunchedEffect(item.id, progress) { fill.animateTo(progress ?: 0f, tween(900, delayMillis = 120, easing = FastOutSlowInEasing)) }
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.xs)
+            .background(c.accent)
+            .tap(pressedAlpha = 0.85f, label = item.title, onLongClick = { showActions(item) }) { Nav.push(Route.CountdownDetail(item.id)) }
+            .padding(Space.xl),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Txt("NEXT UP", Type.label, c.onAccent.copy(alpha = 0.8f), Modifier.weight(1f))
+            if (item.emoji.isNotBlank()) Txt(item.emoji, Type.h2, unscaled = true)
+        }
+        Row(Modifier.padding(top = Space.m), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Txt(CountdownMath.titleWithAge(item.dates, item.title, today).uppercase(), Type.display.copy(fontSize = 26.sp, lineHeight = 29.sp), c.onAccent, maxLines = 2)
+                Txt(dateText(item, today), Type.caption, c.onAccent.copy(alpha = 0.8f), maxLines = 1)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                if (display.numeric) Odometer(display.value, Type.display.copy(fontSize = 56.sp, lineHeight = 58.sp), c.onAccent)
+                else Txt(display.value.removeSuffix(" 🎉").uppercase(), Type.display.copy(fontSize = 30.sp, lineHeight = 34.sp), c.onAccent, maxLines = 1, unscaled = true)
+                if (display.unit.isNotEmpty()) Txt(display.unit.uppercase(), Type.label.copy(fontSize = 10.sp), c.onAccent.copy(alpha = 0.8f), unscaled = true)
+            }
+        }
+        if (progress != null) Bar(fill.value, c.onAccent, Modifier.padding(top = Space.l))
+    }
+}
+
+@Composable
+private fun Bar(fraction: Float, color: Color, modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxWidth().height(3.dp).background(color.copy(alpha = 0.25f))) {
+        Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight().background(color))
+    }
+}
+
+private fun dateText(item: Countdown, today: String): String =
+    CountdownMath.dateLine(item.dates, today) + if (item.targetTime != null && item.kind == "until") " · ${item.targetTime}" else ""
+
+@Composable
 private fun CountdownRow(item: Countdown, today: String, modifier: Modifier) {
     val c = colors
     val display = CountdownMath.display(item.dates, today)
     val past = CountdownMath.isPast(item.dates, today)
-    val date = CountdownMath.dateLine(item.dates, today) + if (item.targetTime != null && item.kind == "until") " · ${item.targetTime}" else ""
     Row(
-        modifier.fillMaxWidth().tap(pressedColor = c.hairline, label = item.title) { Nav.push(Route.CountdownDetail(item.id)) }
-            .hairlineBottom(c.hairline).heightIn(min = 76.dp).padding(horizontal = GUTTER, vertical = Space.m),
+        modifier.fillMaxWidth()
+            .tap(pressedColor = c.hairline, label = item.title, onLongClick = { showActions(item) }) { Nav.push(Route.CountdownDetail(item.id)) }
+            .heightIn(min = 64.dp).padding(horizontal = GUTTER, vertical = Space.s),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.l),
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Txt(CountdownMath.titleWithAge(item.dates, item.title, today), Type.bodyStrong.copy(fontSize = 18.sp), if (past) c.inkMuted else c.ink, maxLines = 1)
-            Txt(date, Type.caption, c.inkMuted, maxLines = 1)
+        Box(Modifier.widthIn(min = 64.dp)) {
+            val value = display.value.removeSuffix(" 🎉").uppercase()
+            Txt(
+                value,
+                Type.display.copy(fontSize = if (display.numeric) 34.sp else 18.sp, lineHeight = 36.sp),
+                if (past) c.inkMuted else c.accentText, maxLines = 1, tabularNums = true, unscaled = true,
+            )
         }
-        Column(horizontalAlignment = Alignment.End) {
-            val value = display.value.removeSuffix(" 🎉")
-            Txt(value.uppercase(), Type.display.copy(fontSize = if (display.numeric) 30.sp else 22.sp, lineHeight = 32.sp), if (past) c.inkMuted else c.accentText, maxLines = 1, tabularNums = true, unscaled = true)
-            if (display.unit.isNotEmpty()) Txt(display.unit.uppercase(), Type.label.copy(fontSize = 10.sp), c.inkMuted, unscaled = true)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Txt(CountdownMath.titleWithAge(item.dates, item.title, today), Type.bodyStrong, if (past) c.inkMuted else c.ink, maxLines = 1)
+            Txt(dateText(item, today), Type.caption, c.inkMuted, maxLines = 1)
         }
     }
 }
@@ -151,13 +266,31 @@ private fun breakdown(from: DateStr, to: DateStr): List<Pair<Long, String>> {
     val weeks = (p.days / 7).toLong()
     val days = (p.days % 7).toLong()
     val cells = mutableListOf<Pair<Long, String>>()
-    if (years > 0) cells.add(years to if (years == 1L) "Year" else "Years")
-    if (years > 0 || months > 0) cells.add(months to if (months == 1L) "Month" else "Months")
-    if (years == 0L) cells.add(weeks to if (weeks == 1L) "Week" else "Weeks")
-    cells.add(days to if (days == 1L) "Day" else "Days")
+    if (years > 0) cells.add(years to if (years == 1L) "year" else "years")
+    if (years > 0 || months > 0) cells.add(months to if (months == 1L) "month" else "months")
+    if (years == 0L) cells.add(weeks to if (weeks == 1L) "week" else "weeks")
+    cells.add(days to if (days == 1L) "day" else "days")
     return cells.take(3)
 }
 
+private class Measure(val label: String, val value: Double, val decimals: Boolean)
+
+private fun measures(value: Long, unit: String): List<Measure> {
+    if (!unit.startsWith("day")) return listOf(Measure(unit, value.toDouble(), false))
+    val tail = unit.substringAfter(' ', "").let { if (it.isEmpty()) "" else " $it" }
+    val list = mutableListOf(
+        Measure(unit, value.toDouble(), false),
+        Measure("weeks$tail", value / 7.0, value % 7 != 0L),
+        Measure("hours$tail", value * 24.0, false),
+    )
+    if (tail == " left") list.add(Measure("sleeps left", value.toDouble(), false))
+    return list
+}
+
+private fun formatMeasure(v: Float, decimals: Boolean): String =
+    if (decimals) String.format(java.util.Locale.getDefault(), "%,.1f", v) else String.format(java.util.Locale.getDefault(), "%,d", v.roundToLong())
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CountdownDetailScreen(id: String) {
     val c = colors
@@ -185,97 +318,138 @@ fun CountdownDetailScreen(id: String) {
             val (h, m) = parseTime(item.targetTime)
             val left = maxOf(0L, Dates.toMillis(today, h, m) - now)
             val minutes = ceil(left / 60_000.0).toLong()
-            listOf(minutes / 60 to "Hours", minutes % 60 to "Minutes")
+            listOf(minutes / 60 to "hours", minutes % 60 to "minutes")
         }
         since -> if (item.targetDate <= today) breakdown(item.targetDate, today) else breakdown(today, item.targetDate)
         CountdownMath.isPast(item.dates, today) -> breakdown(target, today)
         else -> breakdown(today, target)
     }
-
-    val remove = {
-        Dialogs.show(
-            "Delete this countdown?",
-            item.title,
-            listOf(
-                DialogAction("Delete", "destructive") {
-                    CountdownRepo.softDelete(id)
-                    Reminders.syncCountdown(id)
-                    Nav.popScreen()
-                    Snack.show("Countdown deleted") {
-                        CountdownRepo.restore(id)
-                        Reminders.syncCountdown(id)
-                    }
-                },
-                DialogAction("Cancel", "cancel"),
-            ),
-        )
+    val spelled = cells.filter { it.first > 0 }.ifEmpty { cells.takeLast(1) }.joinToString(" · ") { "${it.first} ${it.second}" }
+    val options = if (display.numeric) measures(display.value.toLong(), display.unit) else emptyList()
+    var unitIndex by remember(id) { mutableIntStateOf(0) }
+    val measure = options.getOrNull(unitIndex % maxOf(1, options.size))
+    val counted = remember(id) { Animatable(0f) }
+    LaunchedEffect(measure?.label, measure?.value) {
+        if (measure != null) counted.animateTo(measure.value.toFloat(), tween(700, easing = FastOutSlowInEasing))
     }
-    val kind = when (item.kind) {
-        "yearly" -> "Every year"
-        "monthly" -> "Every month"
-        "since" -> "Counting up"
-        else -> "Once"
-    }
-    val alerts = CountdownMath.alerts.filter { it.first in item.notify }.joinToString(", ") { it.second }.ifEmpty { "Off" }
+    val progress = waitProgress(item, today)
+    val fill = remember(id) { Animatable(0f) }
+    LaunchedEffect(progress) { fill.animateTo(progress ?: 0f, tween(1000, delayMillis = 200, easing = FastOutSlowInEasing)) }
+    val edit = { Nav.openSheet(SheetRoute.CountdownEditor(id)) }
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("", back = true) {
-            HeaderButton(Ic.Trash, "Delete countdown", 20.dp, remove)
+            HeaderButton(Ic.Pencil, "Edit countdown", 20.dp, edit)
+            HeaderButton(Ic.Trash, "Delete countdown", 20.dp) { confirmDelete(item, leave = true) }
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            Column(Modifier.padding(horizontal = GUTTER)) {
+            Column(Modifier.fillMaxWidth().background(c.accent).padding(horizontal = GUTTER, vertical = Space.xl)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Txt(
+                        (if (since) "Counting up" else whenLabel(target, today)).uppercase(),
+                        Type.label, c.onAccent.copy(alpha = 0.8f), Modifier.weight(1f),
+                    )
+                    if (item.emoji.isNotBlank()) Txt(item.emoji, EMOJI_STYLE.copy(fontSize = 32.sp, lineHeight = 40.sp), unscaled = true)
+                }
                 Txt(
                     CountdownMath.titleWithAge(item.dates, item.title, today).uppercase(),
-                    Type.display.copy(fontSize = 30.sp, lineHeight = 34.sp),
-                    modifier = Modifier.tap(label = "Edit countdown") { Nav.openSheet(SheetRoute.CountdownEditor(id)) },
+                    Type.display.copy(fontSize = 34.sp, lineHeight = 38.sp), c.onAccent,
+                    Modifier.padding(top = Space.s).tap(label = "Edit countdown", onClick = edit),
                 )
-                Txt(
-                    CountdownMath.dateLine(item.dates, today) + if (item.targetTime != null && item.kind == "until") " · ${item.targetTime}" else "",
-                    Type.secondary, c.inkMuted, Modifier.padding(top = Space.xs),
-                )
-            }
+                Txt(dateText(item, today), Type.secondary, c.onAccent.copy(alpha = 0.8f), Modifier.padding(top = Space.xs))
 
-            Column(Modifier.fillMaxWidth().padding(top = Space.xxl).background(c.accent).padding(horizontal = GUTTER, vertical = Space.xl)) {
-                Txt(
-                    (if (since) "Since ${Dates.format(item.targetDate, "d MMM yyyy")}" else whenLabel(target, today)).uppercase(),
-                    Type.label, c.onAccent.copy(alpha = 0.8f),
-                )
-                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Space.m), modifier = Modifier.padding(top = Space.s)) {
-                    if (display.numeric) Odometer(display.value, Type.display.copy(fontSize = 96.sp, lineHeight = 100.sp), c.onAccent)
-                    else Txt(display.value.removeSuffix(" 🎉").uppercase(), Type.display.copy(fontSize = 64.sp, lineHeight = 70.sp), c.onAccent, unscaled = true)
-                    if (display.unit.isNotEmpty()) {
-                        Txt(display.unit.uppercase(), Type.nav, c.onAccent, Modifier.padding(bottom = Space.m), unscaled = true)
+                Column(
+                    Modifier.padding(top = Space.xxl).fillMaxWidth()
+                        .then(if (options.size > 1) Modifier.tap(label = "Switch unit") { unitIndex = (unitIndex + 1) % options.size } else Modifier),
+                ) {
+                    if (measure != null) {
+                        val text = formatMeasure(counted.value, measure.decimals)
+                        val size = when {
+                            text.length <= 4 -> 104
+                            text.length <= 6 -> 84
+                            else -> 64
+                        }
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(Space.m), itemVerticalAlignment = Alignment.Bottom) {
+                            Txt(text, Type.display.copy(fontSize = size.sp, lineHeight = (size + 4).sp), c.onAccent, maxLines = 1, tabularNums = true, unscaled = true)
+                            Txt(measure.label.uppercase(), Type.nav, c.onAccent, Modifier.padding(bottom = Space.m), unscaled = true)
+                        }
+                        if (options.size > 1) {
+                            Row(Modifier.padding(top = Space.s), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                options.indices.forEach { i ->
+                                    val on = i == unitIndex % options.size
+                                    Box(Modifier.size(if (on) 18.dp else 6.dp, 6.dp).background(c.onAccent.copy(alpha = if (on) 1f else 0.35f)))
+                                }
+                                Txt("TAP TO SWITCH", Type.label.copy(fontSize = 10.sp), c.onAccent.copy(alpha = 0.7f), Modifier.padding(start = Space.xs), unscaled = true)
+                            }
+                        }
+                    } else {
+                        Txt(display.value.removeSuffix(" 🎉").uppercase(), Type.display.copy(fontSize = 72.sp, lineHeight = 76.sp), c.onAccent, unscaled = true)
                     }
                 }
-                Row(Modifier.fillMaxWidth().padding(top = Space.l).height(IntrinsicSize.Min)) {
-                    cells.forEachIndexed { i, (value, label) ->
-                        if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(c.onAccent.copy(alpha = 0.25f)))
-                        Column(Modifier.weight(1f).padding(start = if (i > 0) Space.l else 0.dp)) {
-                            Txt(value.toString(), Type.display.copy(fontSize = 34.sp, lineHeight = 38.sp), c.onAccent, tabularNums = true, unscaled = true)
-                            Txt(label.uppercase(), Type.label.copy(fontSize = 10.sp), c.onAccent.copy(alpha = 0.8f), unscaled = true)
+                Txt(spelled, Type.secondaryStrong, c.onAccent.copy(alpha = 0.9f), Modifier.padding(top = Space.l))
+                if (progress != null) {
+                    val grid = CountdownMath.dotGrid(item.dates, Dates.dateOfMillis(item.createdAt), today)
+                    Row(Modifier.padding(top = Space.xl).fillMaxWidth()) {
+                        Txt("WAITED ${grid.elapsedDays} ${if (grid.elapsedDays == 1) "DAY" else "DAYS"}", Type.label.copy(fontSize = 10.sp), c.onAccent.copy(alpha = 0.8f), Modifier.weight(1f), unscaled = true)
+                        Txt("${(progress * 100).toInt()}%", Type.label.copy(fontSize = 10.sp), c.onAccent.copy(alpha = 0.8f), unscaled = true)
+                    }
+                    Bar(fill.value, c.onAccent, Modifier.padding(top = Space.s))
+                } else if (since && item.targetDate <= today) {
+                    val day = display.value.toLongOrNull() ?: 0L
+                    val step = if (day < 1000) 100L else 1000L
+                    val milestone = (day / step + 1) * step
+                    val part = (day % step).toFloat() / step
+                    Row(Modifier.padding(top = Space.xl).fillMaxWidth()) {
+                        Txt("NEXT MILESTONE", Type.label.copy(fontSize = 10.sp), c.onAccent.copy(alpha = 0.8f), Modifier.weight(1f), unscaled = true)
+                        Txt("DAY $milestone", Type.label.copy(fontSize = 10.sp), c.onAccent.copy(alpha = 0.8f), unscaled = true)
+                    }
+                    Bar(part, c.onAccent, Modifier.padding(top = Space.s))
+                }
+            }
+
+            InfoRow("Repeats", onClick = edit) {
+                Txt(
+                    when (item.kind) {
+                        "yearly" -> "Every year"
+                        "monthly" -> "Every month"
+                        "since" -> "Counting up"
+                        else -> "Once"
+                    },
+                    Type.secondary, c.ink, maxLines = 1,
+                )
+            }
+            if (!since) {
+                InfoRow("Alerts", onClick = edit) {
+                    val chosen = CountdownMath.alerts.filter { it.first in item.notify }
+                    if (chosen.isEmpty()) Txt("Off", Type.secondary, c.inkMuted)
+                    else FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        chosen.forEach { (_, label) ->
+                            Box(Modifier.border(1.dp, c.hairline).padding(horizontal = Space.s, vertical = 4.dp)) {
+                                Txt(label, Type.caption, c.ink, maxLines = 1)
+                            }
                         }
                     }
                 }
             }
-
-            InfoRow("Repeats", kind)
-            if (!since) InfoRow("Alerts", alerts)
-            InfoRow("On the widget", if (item.showInWidget) "Yes" else "No")
-            Txt("Tap the title to edit.", Type.caption, c.inkMuted, Modifier.padding(horizontal = GUTTER, vertical = Space.l))
+            InfoRow("On the widget", onClick = { CountdownRepo.update(id, "show_in_widget" to !item.showInWidget) }) {
+                Toggle(item.showInWidget)
+            }
             Spacer(Modifier.height(dockInset()))
         }
     }
 }
 
 @Composable
-private fun InfoRow(label: String, value: String) {
+private fun InfoRow(label: String, onClick: () -> Unit, value: @Composable () -> Unit) {
     val c = colors
     Row(
-        Modifier.fillMaxWidth().hairlineBottom(c.hairline).heightIn(min = 56.dp).padding(horizontal = GUTTER),
+        Modifier.fillMaxWidth().tap(pressedColor = c.hairline, label = label, onClick = onClick).hairlineBottom(c.hairline)
+            .heightIn(min = 60.dp).padding(horizontal = GUTTER, vertical = Space.m),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.l),
     ) {
-        Txt(label.uppercase(), Type.label, c.inkMuted, Modifier.weight(1f))
-        Txt(value, Type.secondary, c.ink, maxLines = 1)
+        Txt(label.uppercase(), Type.label, c.inkMuted, maxLines = 1)
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) { value() }
     }
 }
 

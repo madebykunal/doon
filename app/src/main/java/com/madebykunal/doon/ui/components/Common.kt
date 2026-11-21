@@ -188,12 +188,19 @@ fun ScreenHeader(title: String, back: Boolean = false, onTitle: (() -> Unit)? = 
 
 @Composable
 fun Toggle(value: Boolean) {
-    val p by animateFloatAsState(if (value) 1f else 0f, tween(180), label = "toggle")
-    val off = colors.inkMuted.copy(alpha = 0.3f)
-    val on = colors.accent
-    val track = lerp(off, on, p)
-    Box(Modifier.size(46.dp, 28.dp).clip(CircleShape).background(track).padding(3.dp)) {
-        Box(Modifier.offset(x = 18.dp * p).size(22.dp).shadow(2.dp, CircleShape).background(Color.White, CircleShape))
+    val c = colors
+    val p by animateFloatAsState(if (value) 1f else 0f, androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 520f), label = "toggle")
+    val edge = c.inkMuted.copy(alpha = 0.55f)
+    val knob = lerp(c.inkMuted, c.onAccent, p.coerceIn(0f, 1f))
+    val stretch = 1f - kotlin.math.abs(p - 0.5f) * 2f
+    val word = Type.nav.copy(fontSize = 15.sp, lineHeight = 16.sp, letterSpacing = 0.6.sp)
+    Box(
+        Modifier.size(56.dp, 28.dp).background(c.accent.copy(alpha = p.coerceIn(0f, 1f))).border(1.5.dp, lerp(edge, c.accent, p.coerceIn(0f, 1f))).padding(4.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Txt("ON", word, c.onAccent, Modifier.padding(start = 3.dp).alpha(p.coerceIn(0f, 1f)), unscaled = true)
+        Txt("OFF", word, c.inkMuted, Modifier.align(Alignment.CenterEnd).padding(end = 2.dp).alpha(1f - p.coerceIn(0f, 1f)), unscaled = true)
+        Box(Modifier.offset(x = 39.dp * p - 6.dp * stretch).size(9.dp + 6.dp * stretch, 20.dp).background(knob))
     }
 }
 

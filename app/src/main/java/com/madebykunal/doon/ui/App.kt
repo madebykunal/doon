@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -30,8 +32,6 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import com.madebykunal.doon.state.DialogAction
 import com.madebykunal.doon.state.Dialogs
-import com.madebykunal.doon.ui.components.Ic
-import com.madebykunal.doon.ui.components.Icon
 import com.madebykunal.doon.ui.today.WeekStripBar
 import com.madebykunal.doon.ui.todos.QuickAdd
 import androidx.compose.animation.AnimatedContent
@@ -93,6 +93,7 @@ import com.madebykunal.doon.ui.habits.HabitDetailScreen
 import com.madebykunal.doon.ui.habits.HabitsScreen
 import com.madebykunal.doon.ui.lists.ListDetailScreen
 import com.madebykunal.doon.ui.lists.ListsScreen
+import com.madebykunal.doon.ui.settings.SettingsPage
 import com.madebykunal.doon.ui.settings.SettingsScreen
 import com.madebykunal.doon.ui.sheets.SheetContent
 import com.madebykunal.doon.ui.theme.GUTTER
@@ -154,15 +155,16 @@ fun App() {
     }
     Box(Modifier.fillMaxSize().background(c.bg)) {
         AnimatedContent(
-            targetState = overlay,
+            targetState = Nav.overlay.size to overlay,
             transitionSpec = {
-                if (targetState != null) (slideInHorizontally(tween(220)) { it } togetherWith fadeOut(tween(220)))
+                if (targetState.first > initialState.first) (slideInHorizontally(tween(220)) { it } togetherWith fadeOut(tween(220)))
                 else (fadeIn(tween(160)) togetherWith slideOutHorizontally(tween(200)) { it })
             },
             label = "overlay",
-        ) { route ->
+        ) { (_, route) ->
             when (route) {
                 Route.Settings -> SettingsScreen()
+                is Route.SettingsPage -> SettingsPage(route.id)
                 else -> Shell(imeVisible)
             }
         }
@@ -199,6 +201,15 @@ private fun FloatingAdd() {
     val c = colors
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val spin = remember { Animatable(-135f) }
+    val scale = remember { Animatable(0.4f) }
+    var dragging by remember { mutableStateOf(false) }
+    val lift by animateFloatAsState(if (dragging) 1.12f else 1f, spring(dampingRatio = 0.5f, stiffness = 500f), label = "lift")
+    LaunchedEffect(Nav.tab) {
+        launch { scale.snapTo(0.6f); scale.animateTo(1f, spring(dampingRatio = 0.42f, stiffness = 420f)) }
+        spin.snapTo(-90f)
+        spin.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 260f))
+    }
     BoxWithConstraints(Modifier.fillMaxSize().padding(Space.l), contentAlignment = Alignment.BottomEnd) {
         val size = 60.dp
         val maxX = with(density) { (maxWidth - size).toPx() }
@@ -208,11 +219,15 @@ private fun FloatingAdd() {
         Box(
             Modifier.offset { IntOffset(fabOffset.value.x.roundToInt(), fabOffset.value.y.roundToInt()) }
                 .size(size)
-                .shadow(if (home) 6.dp else 10.dp, RectangleShape)
-                .background(c.accent)
+                .graphicsLayer { val s = scale.value * lift; scaleX = s; scaleY = s }
+                .shadow(if (home && !dragging) 6.dp else 12.dp, CircleShape)
+                .background(c.accent, CircleShape)
                 .pointerInput(maxX, maxY) {
                     detectDragGestures(
+                        onDragStart = { dragging = true },
+                        onDragCancel = { dragging = false },
                         onDragEnd = {
+                            dragging = false
                             scope.launch {
                                 if (fabOffset.value.getDistance() < snap) fabOffset.animateTo(Offset.Zero, spring(dampingRatio = 0.7f, stiffness = 400f))
                             }
@@ -221,13 +236,29 @@ private fun FloatingAdd() {
                         change.consume()
                         val next = fabOffset.value + amount
                         scope.launch { fabOffset.snapTo(Offset(next.x.coerceIn(-maxX, 0f), next.y.coerceIn(-maxY, 0f))) }
+                        scope.launch { spin.snapTo(spin.value + amount.x * 0.6f) }
                     }
                 }
-                .tap(pressedAlpha = 0.8f, label = "Add", onClick = ::pressPlus),
+                .tap(label = "Add") {
+                    scope.launch {
+                        launch { scale.animateTo(0.82f, tween(70)); scale.animateTo(1f, spring(dampingRatio = 0.35f, stiffness = 500f)) }
+                        spin.animateTo(spin.targetValue.roundTo90() + 90f, spring(dampingRatio = 0.45f, stiffness = 320f))
+                    }
+                    pressPlus()
+                },
             contentAlignment = Alignment.Center,
-        ) { Icon(Ic.Plus, c.onAccent, 26.dp, stroke = 2.5f) }
+        ) {
+            Canvas(Modifier.size(24.dp).graphicsLayer { rotationZ = spin.value }) {
+                val w = 2.75.dp.toPx()
+                val mid = this.size.width / 2
+                drawLine(c.onAccent, Offset(0f, mid), Offset(this.size.width, mid), w, StrokeCap.Butt)
+                drawLine(c.onAccent, Offset(mid, 0f), Offset(mid, this.size.height), w, StrokeCap.Butt)
+            }
+        }
     }
 }
+
+private fun Float.roundTo90(): Float = Math.round(this / 90f) * 90f
 
 @Composable
 private fun BottomNav() {

@@ -2,6 +2,14 @@ package com.madebykunal.doon.ui.settings
 
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.sp
+import com.madebykunal.doon.state.Nav
+import com.madebykunal.doon.state.Route
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.border
@@ -10,7 +18,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -78,93 +85,78 @@ import kotlin.math.sqrt
 
 private val THEMES = listOf("system" to "System", "light" to "Light", "dark" to "Dark", "black" to "Pure black")
 
+private val CATEGORIES = listOf(
+    "general" to "General",
+    "appearance" to "Appearance",
+    "today" to "Today",
+    "lists" to "Lists",
+    "soon" to "Soon",
+    "habits" to "Habits",
+    "permissions" to "Permissions",
+    "about" to "About",
+)
+
 @Composable
 fun SettingsScreen() {
     val c = colors
+    val categories = if (BuildConfig.DEBUG) CATEGORIES + ("developer" to "Developer") else CATEGORIES
+    Ui.resumes
+    val missing = missingPermissions()
+    Column(Modifier.fillMaxSize()) {
+        ScreenHeader("Settings", back = true)
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = Space.s)) {
+            categories.forEachIndexed { i, (id, label) ->
+                val shown = remember { Animatable(0f) }
+                LaunchedEffect(Unit) { shown.animateTo(1f, tween(260, delayMillis = 30 * i, easing = FastOutSlowInEasing)) }
+                Row(
+                    Modifier.fillMaxWidth()
+                        .graphicsLayer { alpha = shown.value; translationX = (1f - shown.value) * 40.dp.toPx() }
+                        .tap(pressedColor = c.hairline, label = label) { Nav.push(Route.SettingsPage(id)) }
+                        .heightIn(min = 64.dp).padding(horizontal = GUTTER),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Space.m),
+                ) {
+                    Txt(label.uppercase(), Type.listName.copy(fontSize = 30.sp, lineHeight = 36.sp), modifier = Modifier.weight(1f), maxLines = 1)
+                    if (id == "permissions" && missing > 0) Box(Modifier.size(8.dp).background(c.accentText, CircleShape))
+                    Icon(Ic.ChevronRight, c.inkMuted, 22.dp)
+                }
+            }
+            Spacer(Modifier.navigationBarsPadding().height(Space.xxxl))
+        }
+    }
+}
+
+@Composable
+fun SettingsPage(id: String) {
+    val title = (CATEGORIES + ("developer" to "Developer")).firstOrNull { it.first == id }?.second ?: ""
     var colorPicker by remember { mutableStateOf(false) }
     Ui.resumes
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            ScreenHeader("Settings", back = true)
+            ScreenHeader(title, back = true)
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                Section("General", 0) {
-                    SettingRow("Week starts on", right = { Txt(Dates.format(Dates.addDays("2026-11-01", Prefs.weekStart), "EEEE"), Type.secondary, c.accentText) }) {
-                        Prefs.setWeekStartsOn((Prefs.weekStart + 1) % 7)
+                when (id) {
+                    "general" -> GeneralPage()
+                    "appearance" -> AppearancePage { colorPicker = true }
+                    "today" -> {
+                        SwitchRow("Week strip at the top", Prefs.weekStripTop, "Shows the days just under the date", Prefs::setWeekStripTop)
+                        SwitchRow("Roll over unfinished to-dos", Prefs.rollover, "Moves them to today when a new day starts", Prefs::setRollover)
+                        SwitchRow("Celebrate a cleared day", Prefs.celebration, null, Prefs::setCelebration)
                     }
-                    RemindersRows()
-                }
-                Section("Appearance", 1) {
-                    SubLabel("Accent")
-                    val ids = Accents.presets.keys.toList() + "custom"
-                    Column(Modifier.padding(horizontal = Space.s, vertical = Space.s)) {
-                        ids.chunked(6).forEach { row ->
-                            Row(Modifier.fillMaxWidth()) {
-                                row.forEach { id ->
-                                    Box(
-                                        Modifier.weight(1f).height(56.dp).tap(label = Accents.presets[id]?.first ?: "Custom accent color") {
-                                            if (id == "custom") colorPicker = true else Prefs.setAccent(id)
-                                        },
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        val selected = Prefs.accent == id
-                                        val (fill, on) = c.accentFor(if (id == "custom") Prefs.customColor else Accents.presets.getValue(id).second)
-                                        val ring = if (selected) Modifier.border(2.dp, c.ink, CircleShape).padding(4.dp) else Modifier
-                                        Box(Modifier.size(40.dp).then(ring), contentAlignment = Alignment.Center) {
-                                            if (id == "custom" && Prefs.accent != "custom") {
-                                                Box(Modifier.fillMaxSize().border(1.5.dp, c.inkMuted, CircleShape), contentAlignment = Alignment.Center) {
-                                                    Icon(Ic.Plus, c.inkMuted, 16.dp)
-                                                }
-                                            } else {
-                                                Box(Modifier.fillMaxSize().background(fill, CircleShape), contentAlignment = Alignment.Center) {
-                                                    if (selected) Icon(Ic.Check, on, 16.dp, stroke = 3f)
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                repeat(6 - row.size) { Spacer(Modifier.weight(1f)) }
-                            }
-                        }
+                    "lists" -> {
+                        SwitchRow("Count on collapsed folders", Prefs.listFolderCounts, "How many lists a closed folder holds", Prefs::setListFolderCounts)
+                        SwitchRow("Count on lists", Prefs.listCounts, "How many open to-dos each list has", Prefs::setListCounts)
                     }
-                    SubLabel("Theme")
-                    Row(Modifier.fillMaxWidth().padding(horizontal = Space.s)) {
-                        THEMES.forEach { (mode, label) ->
-                            val selected = Prefs.themeMode == mode
-                            Column(
-                                Modifier.weight(1f).height(60.dp).tap(label = label) { Prefs.setThemeMode(mode) },
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
-                            ) {
-                                Txt(label.uppercase(), Type.nav, if (selected) c.accentText else c.inkMuted, maxLines = 1, unscaled = true)
-                                Box(Modifier.padding(top = 4.dp).size(5.dp).background(if (selected) c.accentText else Color.Transparent, CircleShape))
-                            }
-                        }
+                    "soon" -> SwitchRow("Show past countdowns", Prefs.soonShowPast, "Keeps finished ones under Past", Prefs::setSoonShowPast)
+                    "habits" -> SwitchRow("Show the last 7 days", Prefs.habitWeekDots, "A row of dots on each habit", Prefs::setHabitWeekDots)
+                    "permissions" -> PermissionsPage()
+                    "about" -> {
+                        SettingRow("Version", right = { Txt(BuildConfig.VERSION_NAME, Type.secondary, colors.inkMuted) })
+                        SettingRow("Your data", "Everything stays on this phone. Doon has no account, no tracking and no internet access.")
                     }
-                }
-                Section("Today", 2) {
-                    SwitchRow("Week strip at the top", Prefs.weekStripTop, "Shows the days just under the date", Prefs::setWeekStripTop)
-                    SwitchRow("Roll over unfinished to-dos", Prefs.rollover, "Moves them to today when a new day starts", Prefs::setRollover)
-                    SwitchRow("Celebrate a cleared day", Prefs.celebration, null, Prefs::setCelebration)
-                }
-                Section("Lists", 3) {
-                    SwitchRow("Count on collapsed folders", Prefs.listFolderCounts, "How many lists a closed folder holds", Prefs::setListFolderCounts)
-                    SwitchRow("Count on lists", Prefs.listCounts, "How many open to-dos each list has", Prefs::setListCounts)
-                }
-                Section("Soon", 4) {
-                    SwitchRow("Show past countdowns", Prefs.soonShowPast, "Keeps finished ones under Past", Prefs::setSoonShowPast)
-                }
-                Section("Habits", 5) {
-                    SwitchRow("Show the last 7 days", Prefs.habitWeekDots, "A row of dots on each habit", Prefs::setHabitWeekDots)
-                }
-                Section("About", 6) {
-                    SettingRow("Version", right = { Txt(BuildConfig.VERSION_NAME, Type.secondary, c.inkMuted) })
-                }
-                if (BuildConfig.DEBUG) {
-                    Section("Developer", 7) {
-                        SettingRow("Seed performance data", "2 000 to-dos, 30 lists, 50 countdowns") {
-                            Seed.performance(Ui.today)
-                            Snack.show("Seeded")
-                        }
+                    "developer" -> SettingRow("Seed performance data", "2 000 to-dos, 30 lists, 50 countdowns") {
+                        Seed.performance(Ui.today)
+                        Snack.show("Seeded")
                     }
                 }
                 Spacer(Modifier.navigationBarsPadding().height(Space.xxxl))
@@ -181,36 +173,146 @@ fun SettingsScreen() {
 }
 
 @Composable
-private fun RemindersRows() {
+private fun GeneralPage() {
     val c = colors
-    Ui.resumes
-    val exact = Reminders.canExact()
-    val fullScreen = Reminders.canFullScreen()
-    val overlay = Reminders.canOverlay()
-    val action = @Composable { label: String -> Txt(label, Type.secondaryStrong, c.accentText) }
-        if (!exact) SettingRow("Ring on the minute", "Allow alarms so Android doesn’t hold reminders back", right = { action("Allow") }) { Reminders.openExactAlarmSettings() }
-        SwitchRow("Full-screen alerts", Prefs.fullScreenAlerts, "Reminders wake the screen and show over other apps") { on ->
-            Prefs.setFullScreenAlerts(on)
-            Reminders.resyncAll()
-            if (on && !fullScreen) Reminders.openFullScreenSettings()
-            else if (on && !overlay) Reminders.requestOverlay()
+    SettingRow("Week starts on", right = { Txt(Dates.format(Dates.addDays("2026-11-01", Prefs.weekStart), "EEEE"), Type.secondary, c.accentText) }) {
+        Prefs.setWeekStartsOn((Prefs.weekStart + 1) % 7)
+    }
+    SwitchRow("Full-screen alerts", Prefs.fullScreenAlerts, "Reminders wake the screen and show over other apps") { on ->
+        Prefs.setFullScreenAlerts(on)
+        Reminders.resyncAll()
+        if (on && !Reminders.canFullScreen()) Reminders.openFullScreenSettings()
+        else if (on && !Reminders.canOverlay()) Reminders.requestOverlay()
+    }
+    if (missingPermissions() > 0) {
+        SettingRow("Some permissions are off", "Reminders may be late or quiet", right = { Txt("Review", Type.secondaryStrong, c.accentText) }) {
+            Nav.push(Route.SettingsPage("permissions"))
         }
-        if (Prefs.fullScreenAlerts && !fullScreen) SettingRow("Allow full-screen notifications", "Needed to wake a locked phone", right = { action("Open") }) { Reminders.openFullScreenSettings() }
-        if (Prefs.fullScreenAlerts && !overlay) SettingRow("Allow display over other apps", "Needed to show over the app you’re using", right = { action("Open") }) { Reminders.requestOverlay() }
+    }
+}
+
+@Composable
+private fun AppearancePage(onCustom: () -> Unit) {
+    val c = colors
+    SubLabel("Accent")
+    val ids = Accents.presets.keys.toList() + "custom"
+    Column(Modifier.padding(horizontal = Space.s, vertical = Space.s)) {
+        ids.chunked(6).forEach { row ->
+            Row(Modifier.fillMaxWidth()) {
+                row.forEach { id ->
+                    Box(
+                        Modifier.weight(1f).height(56.dp).tap(label = Accents.presets[id]?.first ?: "Custom accent color") {
+                            if (id == "custom") onCustom() else Prefs.setAccent(id)
+                        },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        val selected = Prefs.accent == id
+                        val (fill, on) = c.accentFor(if (id == "custom") Prefs.customColor else Accents.presets.getValue(id).second)
+                        val ring = if (selected) Modifier.border(2.dp, c.ink, CircleShape).padding(4.dp) else Modifier
+                        Box(Modifier.size(40.dp).then(ring), contentAlignment = Alignment.Center) {
+                            if (id == "custom" && Prefs.accent != "custom") {
+                                Box(Modifier.fillMaxSize().border(1.5.dp, c.inkMuted, CircleShape), contentAlignment = Alignment.Center) {
+                                    Icon(Ic.Plus, c.inkMuted, 16.dp)
+                                }
+                            } else {
+                                Box(Modifier.fillMaxSize().background(fill, CircleShape), contentAlignment = Alignment.Center) {
+                                    if (selected) Icon(Ic.Check, on, 16.dp, stroke = 3f)
+                                }
+                            }
+                        }
+                    }
+                }
+                repeat(6 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+    SubLabel("Theme")
+    Row(Modifier.fillMaxWidth().padding(horizontal = Space.s)) {
+        THEMES.forEach { (mode, label) ->
+            val selected = Prefs.themeMode == mode
+            Column(
+                Modifier.weight(1f).height(60.dp).tap(label = label) { Prefs.setThemeMode(mode) },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Txt(label.uppercase(), Type.nav, if (selected) c.accentText else c.inkMuted, maxLines = 1, unscaled = true)
+                Box(Modifier.padding(top = 4.dp).size(5.dp).background(if (selected) c.accentText else Color.Transparent, CircleShape))
+            }
+        }
+    }
+}
+
+private fun missingPermissions(): Int {
+    var n = 0
+    if (!Reminders.hasPermission()) n++
+    if (!Reminders.canExact()) n++
+    if (Prefs.fullScreenAlerts && !Reminders.canFullScreen()) n++
+    if (Prefs.fullScreenAlerts && !Reminders.canOverlay()) n++
+    return n
+}
+
+@Composable
+private fun PermissionsPage() {
+    val c = colors
+    Txt(
+        "Doon asks for each of these only when a feature needs it. You can change them any time in Android settings.",
+        Type.secondary, c.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.xs, bottom = Space.l),
+    )
+    PermissionRow("Notifications", "Shows your to-do reminders, countdown alerts and the morning summary.", Reminders.hasPermission()) {
+        Reminders.openNotificationSettings()
+    }
+    PermissionRow("Alarms and reminders", "Lets a reminder ring on the exact minute instead of a few minutes late.", Reminders.canExact()) {
+        Reminders.openExactAlarmSettings()
+    }
+    PermissionRow(
+        "Full-screen notifications",
+        "Lets an alert wake a locked phone, like an alarm clock. Only used when Full-screen alerts is on.",
+        Reminders.canFullScreen(),
+        needed = Prefs.fullScreenAlerts,
+    ) { Reminders.openFullScreenSettings() }
+    PermissionRow(
+        "Display over other apps",
+        "Lets an alert appear on top of the app you’re using. Only used when Full-screen alerts is on.",
+        Reminders.canOverlay(),
+        needed = Prefs.fullScreenAlerts,
+    ) { Reminders.requestOverlay() }
+    PermissionRow("Run at startup", "Puts your reminders back after the phone restarts. Android grants this at install.", true)
+    SubLabel("Never asked for")
+    PermissionRow("Internet", "Doon can’t go online. Your to-dos, lists and habits never leave this phone.", false, never = true)
+}
+
+@Composable
+private fun PermissionRow(title: String, reason: String, granted: Boolean, needed: Boolean = true, never: Boolean = false, onOpen: (() -> Unit)? = null) {
+    val c = colors
+    val canAct = onOpen != null && !granted
+    Row(
+        Modifier.fillMaxWidth().then(if (canAct) Modifier.tap(pressedColor = c.hairline, label = "Allow $title") { onOpen?.invoke() } else Modifier)
+            .padding(horizontal = GUTTER, vertical = Space.m),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.l),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Txt(title, Type.bodyStrong)
+            Txt(reason, Type.caption, c.inkMuted)
+        }
+        val word = Type.nav.copy(fontSize = 16.sp, lineHeight = 18.sp, letterSpacing = 0.6.sp)
+        when {
+            never -> Txt("NONE", word, c.inkMuted, unscaled = true)
+            granted -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Icon(Ic.Check, c.accentText, 14.dp, stroke = 3f)
+                Txt("ON", word, c.accentText, unscaled = true)
+            }
+            !needed -> Txt("OFF", word, c.inkMuted, unscaled = true)
+            else -> Box(Modifier.background(c.accent).padding(horizontal = Space.m, vertical = 6.dp)) {
+                Txt("ALLOW", word, c.onAccent, unscaled = true)
+            }
+        }
+    }
 }
 
 @Composable
 private fun SubLabel(text: String) {
     Txt(text, Type.secondary, colors.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.s))
-}
-
-@Composable
-private fun Section(title: String, index: Int, content: @Composable ColumnScope.() -> Unit) {
-    val c = colors
-    Column(Modifier.fillMaxWidth().background(if (index % 2 == 0) c.bg else c.surface).padding(top = Space.l, bottom = Space.s)) {
-        Txt(title.uppercase(), Type.label, c.inkMuted, Modifier.padding(horizontal = GUTTER).padding(bottom = Space.xs))
-        content()
-    }
 }
 
 @Composable
