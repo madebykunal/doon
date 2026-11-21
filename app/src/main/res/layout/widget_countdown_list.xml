@@ -31,7 +31,7 @@
                 android:layout_height="match_parent"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingEnd="72dp">
+                android:paddingEnd="88dp">
 
                 <FrameLayout
                     android:layout_width="32dp"
@@ -48,7 +48,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center"
-                        android:textSize="17sp" />
+                        android:textSize="17dp" />
                 </FrameLayout>
 
                 <TextView
@@ -59,7 +59,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="@color/widget_ink"
-                    android:textSize="16sp" />
+                    android:textSize="16dp" />
             </LinearLayout>
 
             <TextView
@@ -69,7 +69,7 @@
                 android:layout_gravity="end|center_vertical"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
-                android:textSize="20sp" />
+                android:textSize="20dp" />
         </FrameLayout>
         <FrameLayout
             android:id="@+id/row1"
@@ -82,7 +82,7 @@
                 android:layout_height="match_parent"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingEnd="72dp">
+                android:paddingEnd="88dp">
 
                 <FrameLayout
                     android:layout_width="32dp"
@@ -99,7 +99,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center"
-                        android:textSize="17sp" />
+                        android:textSize="17dp" />
                 </FrameLayout>
 
                 <TextView
@@ -110,7 +110,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="@color/widget_ink"
-                    android:textSize="16sp" />
+                    android:textSize="16dp" />
             </LinearLayout>
 
             <TextView
@@ -120,7 +120,7 @@
                 android:layout_gravity="end|center_vertical"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
-                android:textSize="20sp" />
+                android:textSize="20dp" />
         </FrameLayout>
         <FrameLayout
             android:id="@+id/row2"
@@ -133,7 +133,7 @@
                 android:layout_height="match_parent"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingEnd="72dp">
+                android:paddingEnd="88dp">
 
                 <FrameLayout
                     android:layout_width="32dp"
@@ -150,7 +150,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center"
-                        android:textSize="17sp" />
+                        android:textSize="17dp" />
                 </FrameLayout>
 
                 <TextView
@@ -161,7 +161,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="@color/widget_ink"
-                    android:textSize="16sp" />
+                    android:textSize="16dp" />
             </LinearLayout>
 
             <TextView
@@ -171,7 +171,7 @@
                 android:layout_gravity="end|center_vertical"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
-                android:textSize="20sp" />
+                android:textSize="20dp" />
         </FrameLayout>
         <FrameLayout
             android:id="@+id/row3"
@@ -184,7 +184,7 @@
                 android:layout_height="match_parent"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingEnd="72dp">
+                android:paddingEnd="88dp">
 
                 <FrameLayout
                     android:layout_width="32dp"
@@ -201,7 +201,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center"
-                        android:textSize="17sp" />
+                        android:textSize="17dp" />
                 </FrameLayout>
 
                 <TextView
@@ -212,7 +212,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="@color/widget_ink"
-                    android:textSize="16sp" />
+                    android:textSize="16dp" />
             </LinearLayout>
 
             <TextView
@@ -222,7 +222,7 @@
                 android:layout_gravity="end|center_vertical"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
-                android:textSize="20sp" />
+                android:textSize="20dp" />
         </FrameLayout>
         <FrameLayout
             android:id="@+id/row4"
@@ -235,7 +235,7 @@
                 android:layout_height="match_parent"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingEnd="72dp">
+                android:paddingEnd="88dp">
 
                 <FrameLayout
                     android:layout_width="32dp"
@@ -252,7 +252,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center"
-                        android:textSize="17sp" />
+                        android:textSize="17dp" />
                 </FrameLayout>
 
                 <TextView
@@ -263,7 +263,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="@color/widget_ink"
-                    android:textSize="16sp" />
+                    android:textSize="16dp" />
             </LinearLayout>
 
             <TextView
@@ -273,7 +273,7 @@
                 android:layout_gravity="end|center_vertical"
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
-                android:textSize="20sp" />
+                android:textSize="20dp" />
         </FrameLayout>
     </LinearLayout>
 
@@ -284,6 +284,6 @@
         android:gravity="center"
         android:text="Add a countdown in Doon"
         android:textColor="@color/widget_muted"
-        android:textSize="15sp"
+        android:textSize="15dp"
         android:visibility="gone" />
 </FrameLayout>

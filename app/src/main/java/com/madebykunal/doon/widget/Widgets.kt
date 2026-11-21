@@ -54,7 +54,7 @@ object Widgets {
         val todos = manager.getAppWidgetIds(ComponentName(context, TodayTodosWidget::class.java))
         if (single.isEmpty() && list.isEmpty() && todos.isEmpty()) return
         val rows = if (single.isNotEmpty() || list.isNotEmpty()) countdownRows() else emptyList()
-        single.forEach { manager.updateAppWidget(it, singleViews(context, rows.firstOrNull())) }
+        single.forEach { manager.updateAppWidget(it, singleViews(context, rows.firstOrNull(), sideOf(manager, it))) }
         list.forEach { manager.updateAppWidget(it, listViews(context, rows, heightOf(manager, it))) }
         if (todos.isNotEmpty()) {
             val today = Dates.today()
@@ -65,7 +65,14 @@ object Widgets {
     }
 
     private fun heightOf(manager: AppWidgetManager, id: Int): Int =
-        manager.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 160).takeIf { it > 0 } ?: 160
+        manager.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0).takeIf { it > 0 } ?: 160
+
+    private fun sideOf(manager: AppWidgetManager, id: Int): Int {
+        val o = manager.getAppWidgetOptions(id)
+        val w = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+        val h = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
+        return if (w > 0 && h > 0) minOf(w, h) else 0
+    }
 
     private fun countdownRows(): List<Row> {
         val today = Dates.today()
@@ -119,8 +126,12 @@ object Widgets {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
-    private fun singleViews(context: Context, row: Row?): RemoteViews {
+    private fun singleViews(context: Context, row: Row?, side: Int): RemoteViews {
         val v = RemoteViews(context.packageName, R.layout.widget_countdown_single)
+        if (Build.VERSION.SDK_INT >= 31 && side > 0) {
+            v.setViewLayoutWidth(R.id.card, side.toFloat(), TypedValue.COMPLEX_UNIT_DIP)
+            v.setViewLayoutHeight(R.id.card, side.toFloat(), TypedValue.COMPLEX_UNIT_DIP)
+        }
         val p = palette(false)
         v.color(context, R.id.bg, "setColorFilter", p.cardLight, p.cardDark)
         v.setOnClickPendingIntent(R.id.root, open(context, if (row != null) "countdown:${row.id}" else "countdowns"))
@@ -135,7 +146,6 @@ object Widgets {
         v.setTextViewText(R.id.emoji, row.emoji)
         v.setTextViewText(R.id.title, row.title)
         v.setTextViewText(R.id.value, row.value)
-        v.setTextViewTextSize(R.id.value, TypedValue.COMPLEX_UNIT_SP, if (row.unit.isNotEmpty()) 50f else 26f)
         v.color(context, R.id.value, "setTextColor", p.accentLight, p.accentDark)
         v.setTextViewText(R.id.unit, row.unit.replaceFirstChar { it.uppercase() })
         v.setViewVisibility(R.id.unit, if (row.unit.isNotEmpty()) View.VISIBLE else View.GONE)
@@ -166,7 +176,7 @@ object Widgets {
             v.setTextViewText(ids[2], row.emoji)
             v.setTextViewText(ids[3], row.title)
             v.setTextViewText(ids[4], row.value)
-            v.setTextViewTextSize(ids[4], TypedValue.COMPLEX_UNIT_SP, if (row.unit.isNotEmpty()) 20f else 16f)
+            v.setTextViewTextSize(ids[4], TypedValue.COMPLEX_UNIT_DIP, if (row.unit.isNotEmpty()) 20f else 16f)
             v.color(context, ids[4], "setTextColor", p.accentLight, p.accentDark)
             v.setOnClickPendingIntent(ids[0], open(context, "countdown:${row.id}"))
         }

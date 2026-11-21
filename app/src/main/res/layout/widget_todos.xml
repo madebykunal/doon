@@ -37,7 +37,7 @@
                     android:includeFontPadding="false"
                     android:maxLines="1"
                     android:textColor="@color/widget_ink"
-                    android:textSize="32sp"
+                    android:textSize="32dp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -48,7 +48,7 @@
                     android:fontFamily="sans-serif-medium"
                     android:maxLines="1"
                     android:text="To-dos"
-                    android:textSize="18sp" />
+                    android:textSize="18dp" />
             </LinearLayout>
 
             <FrameLayout
@@ -71,7 +71,7 @@
                     android:gravity="center"
                     android:includeFontPadding="false"
                     android:text="+"
-                    android:textSize="24sp" />
+                    android:textSize="24dp" />
             </FrameLayout>
         </FrameLayout>
 
@@ -81,7 +81,7 @@
             android:layout_height="wrap_content"
             android:paddingTop="4dp"
             android:textColor="@color/widget_muted"
-            android:textSize="16sp"
+            android:textSize="16dp"
             android:visibility="gone" />
         <ImageView
             android:id="@+id/line0"
@@ -120,7 +120,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_ink"
-                android:textSize="16sp" />
+                android:textSize="16dp" />
         </LinearLayout>
         <ImageView
             android:id="@+id/line1"
@@ -159,7 +159,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_ink"
-                android:textSize="16sp" />
+                android:textSize="16dp" />
         </LinearLayout>
         <ImageView
             android:id="@+id/line2"
@@ -198,7 +198,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_ink"
-                android:textSize="16sp" />
+                android:textSize="16dp" />
         </LinearLayout>
         <ImageView
             android:id="@+id/line3"
@@ -237,7 +237,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_ink"
-                android:textSize="16sp" />
+                android:textSize="16dp" />
         </LinearLayout>
         <ImageView
             android:id="@+id/line4"
@@ -276,7 +276,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_ink"
-                android:textSize="16sp" />
+                android:textSize="16dp" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>
