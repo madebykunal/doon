@@ -67,6 +67,9 @@ object ListRepo {
         Live.changed(T.LISTS)
     }
 
+    fun reorderGroup(id: String, beforeKey: String?, afterKey: String?) =
+        updateGroup(id, "position" to FractionalIndex.between(beforeKey, afterKey))
+
     fun reorderList(id: String, beforeKey: String?, afterKey: String?) =
         updateList(id, "position" to FractionalIndex.between(beforeKey, afterKey))
 

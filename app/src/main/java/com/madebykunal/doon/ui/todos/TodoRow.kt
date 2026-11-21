@@ -259,31 +259,18 @@ fun SwipeRow(
     ) {
         val o = offset.value
         if (o != 0f) {
-            val pad = with(density) { 8.dp.toPx() }
-            Box(Modifier.matchParentSize().padding(vertical = 6.dp)) {
-                if (o > 0f) {
-                    Row(
-                        Modifier.padding(start = GUTTER / 3).width(with(density) { maxOf(0f, o - pad).toDp() }).fillMaxSize()
-                            .graphicsLayer { alpha = (o / with(density) { 24.dp.toPx() }).coerceIn(0f, 1f) }
-                            .clip(CircleShape).background(c.accent).padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(Ic.ArrowRight, c.onAccent, 16.dp)
-                        Txt(rightLabel, Type.captionStrong, c.onAccent, maxLines = 1)
-                    }
-                } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) {
-                        Row(
-                            Modifier.padding(end = GUTTER / 3).width(with(density) { maxOf(0f, -o - pad).toDp() }).fillMaxSize()
-                                .graphicsLayer { alpha = (-o / with(density) { 24.dp.toPx() }).coerceIn(0f, 1f) }
-                                .clip(CircleShape).background(c.danger).padding(horizontal = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
-                        ) {
-                            Icon(Ic.Trash, c.onDanger, 16.dp)
-                            Txt("Delete", Type.captionStrong, c.onDanger, maxLines = 1)
-                        }
+            val right = o > 0f
+            Row(
+                Modifier.matchParentSize().background(if (right) c.accent else c.danger).padding(horizontal = GUTTER),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp, if (right) Alignment.Start else Alignment.End),
+            ) {
+                val ink = if (right) c.onAccent else c.onDanger
+                val reveal = (kotlin.math.abs(o) / threshold).coerceIn(0f, 1f)
+                Box(Modifier.graphicsLayer { alpha = reveal; translationX = (if (right) -1 else 1) * (1 - reveal) * 24.dp.toPx() }) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(if (right) Ic.ArrowRight else Ic.Trash, ink, 18.dp)
+                        Txt((if (right) rightLabel else "Delete").uppercase(), Type.nav.copy(fontSize = 18.sp, lineHeight = 22.sp), ink, maxLines = 1, unscaled = true)
                     }
                 }
             }

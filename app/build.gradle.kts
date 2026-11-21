@@ -26,8 +26,8 @@ android {
         applicationId = "com.madebykunal.doon"
         minSdk = 26
         targetSdk = 37
-        versionCode = 8
-        versionName = "0.7.0"
+        versionCode = 9
+        versionName = "0.7.2"
     }
 
     signingConfigs {

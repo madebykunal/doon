@@ -39,6 +39,7 @@ import com.madebykunal.doon.data.Live
 import com.madebykunal.doon.data.T
 import com.madebykunal.doon.data.TodoList
 import com.madebykunal.doon.state.Nav
+import com.madebykunal.doon.state.Prefs
 import com.madebykunal.doon.state.Route
 import com.madebykunal.doon.state.SheetRoute
 import com.madebykunal.doon.state.TodoActions
@@ -71,6 +72,7 @@ fun ListsScreen() {
     val counts = remember(todosV, listsV) { ListRepo.counts() }
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Lists") {
+            HeaderButton(Ic.Reorder, "Reorder folders", 22.dp) { Nav.openSheet(SheetRoute.ReorderFolders) }
             SettingsButton()
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -97,7 +99,7 @@ private fun GroupSection(group: ListGroup, lists: List<TodoList>, counts: Map<St
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Txt(group.name.uppercase(), Type.label, c.inkMuted, maxLines = 1, modifier = Modifier.weight(1f))
-                if (collapsed && lists.isNotEmpty()) Txt(lists.size.toString(), Type.secondaryStrong, c.inkMuted, tabularNums = true)
+                if (collapsed && lists.isNotEmpty() && Prefs.listFolderCounts) Txt(lists.size.toString(), Type.secondaryStrong, c.inkMuted, tabularNums = true)
             }
         }
         if (!collapsed) ReorderColumn(lists, counts, if (band) c.surface else c.bg)
@@ -168,7 +170,7 @@ private fun ListRow(list: TodoList, count: Int, bg: androidx.compose.ui.graphics
         horizontalArrangement = Arrangement.spacedBy(Space.m),
     ) {
         Txt(list.name.uppercase(), Type.listName, maxLines = 1, modifier = Modifier.weight(1f))
-        if (count > 0) Txt(count.toString(), Type.secondaryStrong, c.inkMuted, tabularNums = true)
+        if (count > 0 && Prefs.listCounts) Txt(count.toString(), Type.secondaryStrong, c.inkMuted, tabularNums = true)
     }
 }
 

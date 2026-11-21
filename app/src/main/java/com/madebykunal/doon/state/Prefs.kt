@@ -36,6 +36,18 @@ object Prefs {
     @set:JvmName("assign_weekStrip")
     var weekStrip by mutableStateOf(true)
         private set
+    @set:JvmName("assign_listFolderCounts")
+    var listFolderCounts by mutableStateOf(true)
+        private set
+    @set:JvmName("assign_listCounts")
+    var listCounts by mutableStateOf(true)
+        private set
+    @set:JvmName("assign_soonShowPast")
+    var soonShowPast by mutableStateOf(true)
+        private set
+    @set:JvmName("assign_habitWeekDots")
+    var habitWeekDots by mutableStateOf(true)
+        private set
     @set:JvmName("assign_weekStripTop")
     var weekStripTop by mutableStateOf(false)
         private set
@@ -70,6 +82,10 @@ object Prefs {
         weekStrip = prefs.getBoolean("weekStrip", weekStrip)
         weekBand = prefs.getBoolean("weekBand", weekBand)
         weekStripTop = prefs.getBoolean("weekStripTop", weekStripTop)
+        listFolderCounts = prefs.getBoolean("listFolderCounts", listFolderCounts)
+        listCounts = prefs.getBoolean("listCounts", listCounts)
+        soonShowPast = prefs.getBoolean("soonShowPast", soonShowPast)
+        habitWeekDots = prefs.getBoolean("habitWeekDots", habitWeekDots)
         digestTime = prefs.getString("digestTime", digestTime)!!
         defaultCountdownAlerts = prefs.getString("defaultCountdownAlerts", null)
             ?.split(",")?.mapNotNull { it.toIntOrNull() } ?: defaultCountdownAlerts
@@ -94,6 +110,10 @@ object Prefs {
     fun setWeekStartsOn(v: Int) { weekStartsOn = v; saved("weekStartsOn") { putInt("weekStartsOn", v) } }
     fun setCelebration(v: Boolean) { celebration = v; saved("celebration") { putBoolean("celebration", v) } }
     fun setWeekStrip(v: Boolean) { weekStrip = v; saved("weekStrip") { putBoolean("weekStrip", v) } }
+    fun setListFolderCounts(v: Boolean) { listFolderCounts = v; saved("listFolderCounts") { putBoolean("listFolderCounts", v) } }
+    fun setListCounts(v: Boolean) { listCounts = v; saved("listCounts") { putBoolean("listCounts", v) } }
+    fun setSoonShowPast(v: Boolean) { soonShowPast = v; saved("soonShowPast") { putBoolean("soonShowPast", v) } }
+    fun setHabitWeekDots(v: Boolean) { habitWeekDots = v; saved("habitWeekDots") { putBoolean("habitWeekDots", v) } }
     fun setWeekStripTop(v: Boolean) { weekStripTop = v; saved("weekStripTop") { putBoolean("weekStripTop", v) } }
     fun setWeekBand(v: Boolean) { weekBand = v; saved("weekBand") { putBoolean("weekBand", v) } }
     fun setDigestEnabled(v: Boolean) { digestEnabled = v; saved("digestEnabled") { putBoolean("digestEnabled", v) } }

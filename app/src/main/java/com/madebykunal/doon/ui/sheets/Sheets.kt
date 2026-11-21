@@ -2,6 +2,22 @@ package com.madebykunal.doon.ui.sheets
 
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.zIndex
+import kotlin.math.roundToInt
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -18,6 +34,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -103,6 +120,7 @@ fun SheetContent(entry: SheetEntry) {
         is SheetRoute.CountdownEditor -> CountdownEditorSheet(r.id)
         is SheetRoute.HabitEditor -> HabitEditorSheet(r.id)
         is SheetRoute.Emoji -> EmojiSheet(r.onPick)
+        SheetRoute.ReorderFolders -> ReorderFoldersSheet()
     }
 }
 
@@ -307,17 +325,19 @@ private fun NameRow(emoji: String?, onEmoji: ((String) -> Unit)?, content: @Comp
 
 @Composable
 private fun ListEditorSheet(listId: String?, groupId: String?, mode: String?) {
+    val c = colors
     val close = LocalSheetClose.current
     val groups = remember { ListRepo.groups() }
     val isGroup = mode == "group" || (groupId != null && mode != "list")
     val existingGroup = if (isGroup) groups.firstOrNull { it.id == groupId } else null
     val existingList = remember { listId?.let { ListRepo.get(it) } }
     var name by remember { mutableStateOf(existingList?.name ?: existingGroup?.name ?: "") }
-    var emoji by remember { mutableStateOf(existingList?.emoji) }
     var chosenGroup by remember { mutableStateOf(existingList?.groupId ?: if (mode == "list") groupId else null) }
     val targetGroup = chosenGroup ?: groups.firstOrNull()?.id
     val editing = existingList != null || existingGroup != null
     val noun = if (isGroup) "folder" else "list"
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
     val save = save@{
         val trimmed = name.trim()
@@ -325,9 +345,9 @@ private fun ListEditorSheet(listId: String?, groupId: String?, mode: String?) {
         if (isGroup) {
             if (existingGroup != null) ListRepo.updateGroup(existingGroup.id, "name" to trimmed) else ListRepo.createGroup(trimmed)
         } else if (existingList != null) {
-            ListRepo.updateList(existingList.id, "name" to trimmed, "emoji" to emoji)
+            ListRepo.updateList(existingList.id, "name" to trimmed)
         } else if (targetGroup != null) {
-            ListRepo.createList(trimmed, targetGroup, emoji)
+            ListRepo.createList(trimmed, targetGroup)
         }
         close()
     }
@@ -349,15 +369,113 @@ private fun ListEditorSheet(listId: String?, groupId: String?, mode: String?) {
         )
     }
 
-    SheetFrame(if (editing) "Edit $noun" else "New $noun", action = Triple("Save", name.isNotBlank(), save)) {
-        NameRow(null, null) {
-            Field(name, { name = it }, if (isGroup) "Folder name" else "List name", Modifier.fillMaxWidth(), autoFocus = !editing, onSubmit = save)
-        }
+    Column(Modifier.fillMaxWidth().background(c.surface).navigationBarsPadding().padding(top = Space.xl, bottom = Space.l)) {
+        Txt((if (editing) "Rename $noun" else "New $noun").uppercase(), Type.label, c.inkMuted, Modifier.padding(horizontal = GUTTER))
+        BasicTextField(
+            value = name,
+            onValueChange = { name = it.replace("\n", "") },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(top = Space.s).focusRequester(focus),
+            textStyle = Type.listName.copy(color = c.ink),
+            singleLine = true,
+            cursorBrush = SolidColor(c.accent),
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { save() }),
+            decorationBox = { inner ->
+                Column {
+                    Box(Modifier.padding(vertical = Space.s)) {
+                        if (name.isEmpty()) Txt((if (isGroup) "Folder name" else "List name").uppercase(), Type.listName, c.inkMuted)
+                        inner()
+                    }
+                    Box(Modifier.fillMaxWidth().height(2.dp).background(c.accent))
+                }
+            },
+        )
         if (!isGroup && existingList == null && groups.size > 1) {
-            SectionLabel("Folder")
-            groups.forEach { g -> OptionRow(g.name, selected = g.id == targetGroup) { chosenGroup = g.id } }
+            Txt("FOLDER", Type.label, c.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.xl, bottom = Space.s))
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = GUTTER), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                groups.forEach { g ->
+                    val selected = g.id == targetGroup
+                    Box(
+                        Modifier.height(40.dp).background(if (selected) c.accent else c.hairline).tap(label = g.name) { chosenGroup = g.id }.padding(horizontal = Space.m),
+                        contentAlignment = Alignment.Center,
+                    ) { Txt(g.name.uppercase(), Type.nav.copy(fontSize = 17.sp, lineHeight = 20.sp), if (selected) c.onAccent else c.ink, maxLines = 1, unscaled = true) }
+                }
+            }
         }
-        if (editing) OptionRow("Delete $noun", destructive = true, onClick = remove)
+        Row(Modifier.fillMaxWidth().padding(start = GUTTER, end = GUTTER, top = Space.xl), verticalAlignment = Alignment.CenterVertically) {
+            if (editing) Txt("DELETE", Type.nav.copy(fontSize = 18.sp), c.dangerText, Modifier.tap(label = "Delete $noun", onClick = remove).padding(vertical = Space.s), unscaled = true)
+            Spacer(Modifier.weight(1f))
+            Txt("CANCEL", Type.nav.copy(fontSize = 18.sp), c.inkMuted, Modifier.tap(label = "Cancel", onClick = close).padding(Space.s), unscaled = true)
+            Box(
+                Modifier.padding(start = Space.s).height(44.dp).background(if (name.isBlank()) c.hairline else c.accent).tap(enabled = name.isNotBlank(), label = "Save") { save() }.padding(horizontal = Space.xl),
+                contentAlignment = Alignment.Center,
+            ) { Txt("SAVE", Type.nav.copy(fontSize = 18.sp), if (name.isBlank()) c.inkMuted else c.onAccent, unscaled = true) }
+        }
+    }
+}
+
+@Composable
+private fun ReorderFoldersSheet() {
+    val c = colors
+    val close = LocalSheetClose.current
+    val version = Live.version(T.GROUPS)
+    val groups = remember(version) { ListRepo.groups() }
+    val rowPx = with(LocalDensity.current) { 60.dp.toPx() }
+    var dragging by remember { mutableStateOf<String?>(null) }
+    var offset by remember { mutableStateOf(0f) }
+    val from = groups.indexOfFirst { it.id == dragging }
+    val to = if (from < 0) -1 else (from + (offset / rowPx).roundToInt()).coerceIn(0, groups.size - 1)
+    Column(Modifier.fillMaxWidth().background(c.surface).navigationBarsPadding().padding(top = Space.xl, bottom = Space.l)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER).padding(bottom = Space.s), verticalAlignment = Alignment.CenterVertically) {
+            Txt("REORDER FOLDERS", Type.label, c.inkMuted, Modifier.weight(1f))
+            Txt("DONE", Type.nav.copy(fontSize = 18.sp), c.accentText, Modifier.tap(label = "Done", onClick = close).padding(Space.s), unscaled = true)
+        }
+        groups.forEachIndexed { index, group ->
+            val shift = when {
+                from < 0 || group.id == dragging -> 0f
+                index in (from + 1)..to -> -rowPx
+                index in to until from -> rowPx
+                else -> 0f
+            }
+            val animated by animateFloatAsState(shift, label = "shift")
+            val isDragged = group.id == dragging
+            Row(
+                Modifier.fillMaxWidth().zIndex(if (isDragged) 1f else 0f)
+                    .graphicsLayer { translationY = if (isDragged) offset else animated }
+                    .then(if (isDragged) Modifier.shadow(8.dp) else Modifier)
+                    .background(if (isDragged) c.bg else c.surface).hairlineBottom(c.hairline).height(60.dp)
+                    .pointerInput(group.id) {
+                        detectDragGestures(
+                            onDragStart = {
+                                dragging = group.id
+                                offset = 0f
+                            },
+                            onDragEnd = {
+                                val f = groups.indexOfFirst { it.id == group.id }
+                                val t = (f + (offset / rowPx).roundToInt()).coerceIn(0, groups.size - 1)
+                                if (f >= 0 && t != f) {
+                                    val rest = groups.filter { it.id != group.id }
+                                    ListRepo.reorderGroup(group.id, rest.getOrNull(t - 1)?.position, rest.getOrNull(t)?.position)
+                                }
+                                dragging = null
+                                offset = 0f
+                            },
+                            onDragCancel = {
+                                dragging = null
+                                offset = 0f
+                            },
+                        ) { change, amount ->
+                            change.consume()
+                            offset += amount.y
+                        }
+                    }
+                    .padding(horizontal = GUTTER),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Txt(group.name.uppercase(), Type.listName.copy(fontSize = 22.sp), maxLines = 1, modifier = Modifier.weight(1f))
+                Icon(Ic.Grip, c.inkMuted, 22.dp)
+            }
+        }
     }
 }
 
@@ -404,7 +522,7 @@ private fun CountdownEditorSheet(id: String?) {
     }
 
     SheetFrame(if (existing != null) "Edit countdown" else "New countdown", tall = true, action = Triple("Save", title.isNotBlank(), save)) {
-        NameRow(emoji, { emoji = it }) { Field(title, { title = it }, "Title", Modifier.fillMaxWidth(), autoFocus = existing == null) }
+        NameRow(null, null) { Field(title, { title = it }, "Title", Modifier.fillMaxWidth(), autoFocus = existing == null) }
         SectionLabel("Type")
         COUNTDOWN_KINDS.forEach { (k, label, help) -> OptionRow(label, help, selected = kind == k) { kind = k } }
         SectionLabel(if (kind == "since") "Started on" else "Date")

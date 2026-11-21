@@ -3,6 +3,19 @@ package com.madebykunal.doon.ui
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -168,12 +181,7 @@ private fun Shell(imeVisible: Boolean) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             Tabs()
             if (!imeVisible && Editor.composer == null) {
-                Box(Modifier.fillMaxSize().padding(Space.l), contentAlignment = Alignment.BottomEnd) {
-                    Box(
-                        Modifier.size(60.dp).shadow(6.dp, CircleShape).background(c.accent, CircleShape).tap(pressedAlpha = 0.8f, label = "Add", onClick = ::pressPlus),
-                        contentAlignment = Alignment.Center,
-                    ) { Icon(Ic.Plus, c.onAccent, 26.dp, stroke = 2.5f) }
-                }
+                FloatingAdd()
             }
             SnackbarHost(if (imeVisible) TOOLBAR_HEIGHT + 8.dp else 92.dp)
         }
@@ -181,6 +189,43 @@ private fun Shell(imeVisible: Boolean) {
             if (onToday && !Prefs.weekStripTop) WeekStripBar()
             BottomNav()
         }
+    }
+}
+
+private val fabOffset = Animatable(Offset.Zero, Offset.VectorConverter)
+
+@Composable
+private fun FloatingAdd() {
+    val c = colors
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    BoxWithConstraints(Modifier.fillMaxSize().padding(Space.l), contentAlignment = Alignment.BottomEnd) {
+        val size = 60.dp
+        val maxX = with(density) { (maxWidth - size).toPx() }
+        val maxY = with(density) { (maxHeight - size).toPx() }
+        val snap = with(density) { 96.dp.toPx() }
+        val home = fabOffset.value.getDistance() < snap
+        Box(
+            Modifier.offset { IntOffset(fabOffset.value.x.roundToInt(), fabOffset.value.y.roundToInt()) }
+                .size(size)
+                .shadow(if (home) 6.dp else 10.dp, RectangleShape)
+                .background(c.accent)
+                .pointerInput(maxX, maxY) {
+                    detectDragGestures(
+                        onDragEnd = {
+                            scope.launch {
+                                if (fabOffset.value.getDistance() < snap) fabOffset.animateTo(Offset.Zero, spring(dampingRatio = 0.7f, stiffness = 400f))
+                            }
+                        },
+                    ) { change, amount ->
+                        change.consume()
+                        val next = fabOffset.value + amount
+                        scope.launch { fabOffset.snapTo(Offset(next.x.coerceIn(-maxX, 0f), next.y.coerceIn(-maxY, 0f))) }
+                    }
+                }
+                .tap(pressedAlpha = 0.8f, label = "Add", onClick = ::pressPlus),
+            contentAlignment = Alignment.Center,
+        ) { Icon(Ic.Plus, c.onAccent, 26.dp, stroke = 2.5f) }
     }
 }
 

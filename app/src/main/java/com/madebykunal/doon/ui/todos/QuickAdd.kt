@@ -42,6 +42,9 @@ import com.madebykunal.doon.data.ListRepo
 import com.madebykunal.doon.data.Where
 import com.madebykunal.doon.lib.Dates
 import com.madebykunal.doon.lib.SmartInput
+import com.madebykunal.doon.lib.Recurrence
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -185,29 +188,17 @@ private fun Panel(state: ComposerState) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Space.s),
         ) {
-            Row(
-                Modifier.height(40.dp).background(c.hairline).tap(enabled = home is Home.Day, label = "Change day") { picking = !picking }.padding(horizontal = Space.m),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(Ic.Calendar, c.inkMuted, 16.dp)
-                Txt(place, Type.secondaryStrong, maxLines = 1)
-            }
-            if (smart != null) {
-                Row(
-                    Modifier.height(40.dp).weight(1f, fill = false).background(c.accentTint).tap(label = "Keep my words as typed") {
-                        ignoreRepeat = true
-                        Editor.keepWords = true
-                    }.padding(horizontal = Space.m),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Icon(if (smart.rule != null) Ic.Repeat else Ic.Bell, c.accentText, 14.dp)
-                    Txt(smart.summary(Ui.today), Type.captionStrong, c.accentText, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
-                    Txt("×", Type.caption, c.accentText)
+            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                val keepWords = {
+                    ignoreRepeat = true
+                    Editor.keepWords = true
                 }
+                val smartDate = smart?.date
+                if (smartDate != null) ChipButton(Ic.Calendar, dayLabel(smartDate), true, "Keep my words as typed", keepWords)
+                else ChipButton(Ic.Calendar, place, false, "Change day", if (home is Home.Day) ({ picking = !picking }) else null)
+                smart?.time?.let { ChipButton(Ic.Bell, it, true, "Keep my words as typed", keepWords) }
+                smart?.rule?.let { ChipButton(Ic.Repeat, Recurrence.describe(it).removePrefix("Repeats ").replaceFirstChar(Char::uppercase), true, "Keep my words as typed", keepWords) }
             }
-            Spacer(Modifier.weight(1f))
             Box(
                 Modifier.size(40.dp).background(if (value.isBlank()) c.hairline else c.accent).tap(label = "Add") { submit() },
                 contentAlignment = Alignment.Center,
@@ -215,5 +206,25 @@ private fun Panel(state: ComposerState) {
                 Icon(Ic.ArrowRight, if (value.isBlank()) c.inkMuted else c.onAccent, 18.dp, stroke = 2.25f)
             }
         }
+    }
+}
+
+private fun dayLabel(date: String): String = when (date) {
+    Ui.today -> "Today"
+    Dates.addDays(Ui.today, 1) -> "Tomorrow"
+    else -> Dates.format(date, "EEE d MMM")
+}
+
+@Composable
+private fun ChipButton(ic: Ic, label: String, detected: Boolean, description: String, onClick: (() -> Unit)?) {
+    val c = colors
+    Row(
+        Modifier.height(40.dp).background(if (detected) c.accentTint else c.hairline)
+            .tap(enabled = onClick != null, label = description) { onClick?.invoke() }.padding(horizontal = Space.m),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(ic, if (detected) c.accentText else c.inkMuted, 16.dp)
+        Txt(label, Type.secondaryStrong, if (detected) c.accentText else c.ink, maxLines = 1)
     }
 }

@@ -177,8 +177,8 @@ fun ScreenHeader(title: String, back: Boolean = false, onTitle: (() -> Unit)? = 
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (back) {
-            Box(Modifier.offset(x = -Space.m).size(HIT_TARGET).tap(label = "Back") { Nav.popScreen() }, contentAlignment = Alignment.Center) {
-                Icon(Ic.ChevronLeft, colors.ink, 24.dp)
+            Box(Modifier.offset(x = (-6).dp).size(34.dp, HIT_TARGET).tap(label = "Back") { Nav.popScreen() }, contentAlignment = Alignment.CenterStart) {
+                Icon(Ic.ChevronLeft, colors.ink, 26.dp)
             }
         }
         Txt(title.uppercase(), Type.display, maxLines = 1, modifier = Modifier.weight(1f).then(if (onTitle != null) Modifier.tap(label = "Edit", onClick = onTitle) else Modifier))
@@ -352,14 +352,14 @@ fun DialogButton(action: DialogAction, modifier: Modifier = Modifier, onClick: (
     val (fill, ink) = when (action.tone) {
         "primary" -> c.accent to c.onAccent
         "destructive" -> c.danger to c.onDanger
-        "cancel" -> c.hairline to c.ink
-        else -> c.accentTint to c.accentText
+        "cancel" -> Color.Transparent to c.inkMuted
+        else -> c.hairline to c.ink
     }
     Box(
-        modifier.heightIn(min = 46.dp).clip(RectangleShape).background(fill).tap(pressedAlpha = 0.8f, onClick = onClick).padding(horizontal = Space.l),
+        modifier.heightIn(min = 48.dp).background(fill).tap(pressedAlpha = 0.8f, label = action.label, onClick = onClick).padding(horizontal = Space.l),
         contentAlignment = Alignment.Center,
     ) {
-        Txt(action.label, Type.secondaryStrong, ink, maxLines = 1)
+        Txt(action.label.uppercase(), Type.nav.copy(fontSize = 18.sp, lineHeight = 22.sp), ink, maxLines = 1, unscaled = true)
     }
 }
 
@@ -386,7 +386,7 @@ fun DialogHost() {
     AnimatedVisibility(dialog != null, enter = fadeIn(tween(110)), exit = fadeOut(tween(110))) {
         val d = last ?: return@AnimatedVisibility
         DialogShell(Dialogs::dismiss) {
-            Txt(d.title, Type.h2)
+            Txt(d.title.uppercase(), Type.display.copy(fontSize = 22.sp, lineHeight = 26.sp), unscaled = true)
             if (d.message != null) Txt(d.message, Type.secondary, colors.inkMuted, Modifier.padding(top = Space.s))
             val stacked = d.actions.size > 2
             val buttons = @Composable { mod: Modifier ->

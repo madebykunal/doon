@@ -49,6 +49,7 @@ sealed interface SheetRoute {
     data class CountdownEditor(val id: String? = null) : SheetRoute
     data class HabitEditor(val id: String? = null) : SheetRoute
     class Emoji(val onPick: (String) -> Unit) : SheetRoute
+    data object ReorderFolders : SheetRoute
 }
 
 class SheetEntry(val route: SheetRoute, val key: Int) {

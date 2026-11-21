@@ -131,7 +131,7 @@ private fun HabitRow(habit: Habit) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.xs)) {
             Txt(habit.title.uppercase(), Type.listName.copy(fontSize = 20.sp, lineHeight = 24.sp), maxLines = 1)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { week.forEach { Box(Modifier.size(7.dp).then(dotStyle(it, c))) } }
+                if (Prefs.habitWeekDots) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { week.forEach { Box(Modifier.size(7.dp).then(dotStyle(it, c))) } }
                 Txt(
                     if (habit.kind == "quit") "Last 7 days" else if (dayOff) "Not due today" else "$streak ${HabitMath.streakUnit(s, streak)}",
                     Type.caption, c.inkMuted, maxLines = 1,

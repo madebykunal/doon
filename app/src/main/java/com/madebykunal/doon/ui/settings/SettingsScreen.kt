@@ -87,7 +87,14 @@ fun SettingsScreen() {
         Column(Modifier.fillMaxSize()) {
             ScreenHeader("Settings", back = true)
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                Section("Accent", 0) {
+                Section("General", 0) {
+                    SettingRow("Week starts on", right = { Txt(Dates.format(Dates.addDays("2026-11-01", Prefs.weekStart), "EEEE"), Type.secondary, c.accentText) }) {
+                        Prefs.setWeekStartsOn((Prefs.weekStart + 1) % 7)
+                    }
+                    RemindersRows()
+                }
+                Section("Appearance", 1) {
+                    SubLabel("Accent")
                     val ids = Accents.presets.keys.toList() + "custom"
                     Column(Modifier.padding(horizontal = Space.s, vertical = Space.s)) {
                         ids.chunked(6).forEach { row ->
@@ -119,8 +126,7 @@ fun SettingsScreen() {
                             }
                         }
                     }
-                }
-                Section("Theme", 1) {
+                    SubLabel("Theme")
                     Row(Modifier.fillMaxWidth().padding(horizontal = Space.s)) {
                         THEMES.forEach { (mode, label) ->
                             val selected = Prefs.themeMode == mode
@@ -135,19 +141,26 @@ fun SettingsScreen() {
                         }
                     }
                 }
-                Section("General", 2) {
-                    SwitchRow("Roll over unfinished to-dos", Prefs.rollover, "Moves them to today when a new day starts", Prefs::setRollover)
-                    SettingRow("Week starts on", right = { Txt(Dates.format(Dates.addDays("2026-11-01", Prefs.weekStart), "EEEE"), Type.secondary, c.accentText) }) {
-                        Prefs.setWeekStartsOn((Prefs.weekStart + 1) % 7)
-                    }
+                Section("Today", 2) {
                     SwitchRow("Week strip at the top", Prefs.weekStripTop, "Shows the days just under the date", Prefs::setWeekStripTop)
+                    SwitchRow("Roll over unfinished to-dos", Prefs.rollover, "Moves them to today when a new day starts", Prefs::setRollover)
+                    SwitchRow("Celebrate a cleared day", Prefs.celebration, null, Prefs::setCelebration)
                 }
-                RemindersSection()
-                Section("About", 4) {
+                Section("Lists", 3) {
+                    SwitchRow("Count on collapsed folders", Prefs.listFolderCounts, "How many lists a closed folder holds", Prefs::setListFolderCounts)
+                    SwitchRow("Count on lists", Prefs.listCounts, "How many open to-dos each list has", Prefs::setListCounts)
+                }
+                Section("Soon", 4) {
+                    SwitchRow("Show past countdowns", Prefs.soonShowPast, "Keeps finished ones under Past", Prefs::setSoonShowPast)
+                }
+                Section("Habits", 5) {
+                    SwitchRow("Show the last 7 days", Prefs.habitWeekDots, "A row of dots on each habit", Prefs::setHabitWeekDots)
+                }
+                Section("About", 6) {
                     SettingRow("Version", right = { Txt(BuildConfig.VERSION_NAME, Type.secondary, c.inkMuted) })
                 }
                 if (BuildConfig.DEBUG) {
-                    Section("Developer", 5) {
+                    Section("Developer", 7) {
                         SettingRow("Seed performance data", "2 000 to-dos, 30 lists, 50 countdowns") {
                             Seed.performance(Ui.today)
                             Snack.show("Seeded")
@@ -168,14 +181,13 @@ fun SettingsScreen() {
 }
 
 @Composable
-private fun RemindersSection() {
+private fun RemindersRows() {
     val c = colors
     Ui.resumes
     val exact = Reminders.canExact()
     val fullScreen = Reminders.canFullScreen()
     val overlay = Reminders.canOverlay()
     val action = @Composable { label: String -> Txt(label, Type.secondaryStrong, c.accentText) }
-    Section("Reminders", 3) {
         if (!exact) SettingRow("Ring on the minute", "Allow alarms so Android doesn’t hold reminders back", right = { action("Allow") }) { Reminders.openExactAlarmSettings() }
         SwitchRow("Full-screen alerts", Prefs.fullScreenAlerts, "Reminders wake the screen and show over other apps") { on ->
             Prefs.setFullScreenAlerts(on)
@@ -185,7 +197,11 @@ private fun RemindersSection() {
         }
         if (Prefs.fullScreenAlerts && !fullScreen) SettingRow("Allow full-screen notifications", "Needed to wake a locked phone", right = { action("Open") }) { Reminders.openFullScreenSettings() }
         if (Prefs.fullScreenAlerts && !overlay) SettingRow("Allow display over other apps", "Needed to show over the app you’re using", right = { action("Open") }) { Reminders.requestOverlay() }
-    }
+}
+
+@Composable
+private fun SubLabel(text: String) {
+    Txt(text, Type.secondary, colors.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.s))
 }
 
 @Composable
