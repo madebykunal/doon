@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Doon</string>
+    <string name="widget_countdown_description">One countdown, front and centre.</string>
+    <string name="widget_countdowns_description">Your next few countdowns, soonest first.</string>
+    <string name="widget_todos_description">Today’s open to-dos, with a quick add.</string>
+</resources>

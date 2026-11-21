@@ -1,0 +1,549 @@
+package com.madebykunal.doon.ui.todos
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.madebykunal.doon.data.Home
+import com.madebykunal.doon.data.Todo
+import com.madebykunal.doon.data.Where
+import com.madebykunal.doon.lib.InlineNode
+import com.madebykunal.doon.lib.Markdown
+import com.madebykunal.doon.lib.ParseRepeat
+import com.madebykunal.doon.state.ComposerState
+import com.madebykunal.doon.state.Editor
+import com.madebykunal.doon.state.Nav
+import com.madebykunal.doon.state.SheetRoute
+import com.madebykunal.doon.state.TodoActions
+import com.madebykunal.doon.ui.components.Checkbox
+import com.madebykunal.doon.ui.components.Chip
+import com.madebykunal.doon.ui.components.Ic
+import com.madebykunal.doon.ui.components.Icon
+import com.madebykunal.doon.ui.components.Txt
+import com.madebykunal.doon.ui.components.hairlineBottom
+import com.madebykunal.doon.ui.components.hairlineTop
+import com.madebykunal.doon.ui.components.tap
+import com.madebykunal.doon.ui.theme.CHECKBOX_SIZE
+import com.madebykunal.doon.ui.theme.DoonColors
+import com.madebykunal.doon.ui.theme.GUTTER
+import com.madebykunal.doon.ui.theme.HIT_TARGET
+import com.madebykunal.doon.ui.theme.ROW_MIN_HEIGHT
+import com.madebykunal.doon.ui.theme.Space
+import com.madebykunal.doon.ui.theme.TOOLBAR_HEIGHT
+import com.madebykunal.doon.ui.theme.Type
+import com.madebykunal.doon.ui.theme.colors
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import kotlin.math.sign
+
+private const val ROLLOVER_BADGE_AT = 3
+
+private fun openDetails(id: String) {
+    Editor.commitAll()
+    Nav.openSheet(SheetRoute.TodoDetails(id))
+}
+
+fun inlineAnnotated(source: String, c: DoonColors): AnnotatedString = buildAnnotatedString {
+    fun walk(nodes: List<InlineNode>) {
+        nodes.forEach { node ->
+            when (node) {
+                is InlineNode.Text -> append(node.text)
+                is InlineNode.Code -> withStyle(SpanStyle(fontFamily = FontFamily.Monospace, fontSize = 15.sp, background = c.hairline)) { append(node.text) }
+                is InlineNode.Link -> withLink(LinkAnnotation.Url(node.url, TextLinkStyles(SpanStyle(color = c.accentText, textDecoration = TextDecoration.Underline)))) { append(node.label) }
+                is InlineNode.Styled -> withStyle(
+                    when (node.style) {
+                        InlineNode.Style.Bold -> SpanStyle(fontWeight = FontWeight.SemiBold)
+                        InlineNode.Style.Italic -> SpanStyle(fontStyle = FontStyle.Italic)
+                        InlineNode.Style.Strike -> SpanStyle(textDecoration = TextDecoration.LineThrough)
+                    },
+                ) { walk(node.children) }
+            }
+        }
+    }
+    walk(Markdown.parseInline(source))
+}
+
+@Composable
+fun InlineText(source: String, style: TextStyle, modifier: Modifier = Modifier, onLayout: ((TextLayoutResult) -> Unit)? = null) {
+    val c = colors
+    val text = remember(source, c) { inlineAnnotated(source, c) }
+    BasicText(text, modifier, style, onTextLayout = onLayout)
+}
+
+@Composable
+fun TodoRow(todo: Todo, count: Int, rightLabel: String, onSwipeRight: (String) -> Unit, modifier: Modifier = Modifier) {
+    val c = colors
+    val editing = Editor.editingId == todo.id
+    val highlight = todo.highlight
+    val background = if (highlight != null) c.highlightTint(highlight) else c.bg
+    SwipeRow(
+        id = todo.id,
+        enabled = !editing && RowDrag.draggingId == null,
+        rightLabel = rightLabel,
+        onSwipeRight = onSwipeRight,
+        asksBeforeDelete = todo.seriesId != null,
+        background = background,
+        modifier = modifier,
+    ) {
+        val bar = if (highlight != null) c.highlightBar(highlight) else null
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = ROW_MIN_HEIGHT).hairlineBottom(c.hairline)
+                .drawBehind { if (bar != null) drawRect(bar, size = Size(3.dp.toPx(), size.height)) }
+                .padding(start = GUTTER - 11.dp, end = GUTTER),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (todo.isHeading) HeadingBody(todo, count, editing) else TodoBody(todo, editing)
+        }
+    }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.RowScope.TodoBody(todo: Todo, editing: Boolean) {
+    val c = colors
+    Checkbox(todo.completed) {
+        Editor.stopEditing()
+        TodoActions.toggle(todo.id)
+    }
+    Column(Modifier.weight(1f)) {
+        if (editing) RowInput(todo.text, Type.body)
+        else {
+            val desc = todo.description
+            StrikeText(
+                todo.text,
+                todo.completed,
+                Modifier.fillMaxWidth().tap(label = "Open details") { openDetails(todo.id) }
+                    .padding(start = 2.dp, top = 14.dp, bottom = if (desc != null) 2.dp else 14.dp),
+            )
+            if (desc != null) {
+                Txt(desc, Type.caption, c.inkMuted, Modifier.fillMaxWidth().tap { openDetails(todo.id) }.padding(start = 2.dp, bottom = Space.m), maxLines = 2)
+            }
+        }
+    }
+    if (!editing) {
+        Row(Modifier.padding(start = Space.s), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (todo.rolloverCount >= ROLLOVER_BADGE_AT) Txt("↻${todo.rolloverCount}", Type.micro, c.inkMuted)
+            if (todo.remindAt != null) Icon(Ic.Bell, c.inkMuted, 13.dp)
+            if (todo.seriesId != null) Icon(Ic.Repeat, c.inkMuted, 13.dp)
+        }
+    }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.RowScope.HeadingBody(todo: Todo, count: Int, editing: Boolean) {
+    val c = colors
+    val rotation by animateFloatAsState(if (todo.collapsed) -90f else 0f, tween(160), label = "chevron")
+    Box(Modifier.weight(1f).padding(start = 11.dp)) {
+        if (editing) RowInput(todo.text, Type.bodyStrong)
+        else InlineText(todo.text, Type.bodyStrong.copy(color = c.ink), Modifier.fillMaxWidth().tap(label = "Edit heading") { Editor.startEditing(todo.id, todo.text) }.padding(start = 2.dp, top = 14.dp, bottom = 14.dp))
+    }
+    if (!editing) {
+        Row(
+            Modifier.heightIn(min = HIT_TARGET).tap(label = if (todo.collapsed) "Expand" else "Collapse") { TodoActions.toggleCollapsed(todo.id) }.padding(start = Space.m),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.xs),
+        ) {
+            Txt(count.toString(), Type.caption, c.inkMuted, tabularNums = true)
+            Icon(Ic.ChevronDown, c.inkMuted, 16.dp, modifier = Modifier.rotate(rotation))
+        }
+    }
+}
+
+@Composable
+private fun RowInput(text: String, style: TextStyle) {
+    val c = colors
+    var value by remember { mutableStateOf(text) }
+    val focus = remember { FocusRequester() }
+    var focused by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    BasicTextField(
+        value = value,
+        onValueChange = {
+            if (it.contains('\n')) {
+                value = it.replace("\n", "")
+                Editor.draftText = value
+                Editor.stopEditing()
+            } else {
+                value = it
+                Editor.draftText = it
+            }
+        },
+        modifier = Modifier.fillMaxWidth().focusRequester(focus).onFocusChanged {
+            if (focused && !it.isFocused) Editor.stopEditing()
+            focused = it.isFocused
+        }.padding(start = 2.dp, top = 14.dp, bottom = 14.dp),
+        textStyle = style.copy(color = c.ink),
+        cursorBrush = SolidColor(c.accent),
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { Editor.stopEditing() }),
+    )
+}
+
+@Composable
+private fun StrikeText(source: String, completed: Boolean, modifier: Modifier) {
+    val c = colors
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val progress = remember { Animatable(if (completed) 1f else 0f) }
+    LaunchedEffect(completed) { if (completed) progress.animateTo(1f, tween(160)) else progress.snapTo(0f) }
+    val muted = c.inkMuted
+    InlineText(
+        source,
+        Type.body.copy(color = if (completed) muted else c.ink),
+        modifier.drawWithContent {
+            drawContent()
+            val l = layout ?: return@drawWithContent
+            if (!completed) return@drawWithContent
+            val n = l.lineCount
+            for (i in 0 until n) {
+                val own = (progress.value * n - i).coerceIn(0f, 1f)
+                if (own <= 0f) continue
+                val left = l.getLineLeft(i)
+                val right = l.getLineRight(i)
+                val y = (l.getLineTop(i) + l.getLineBottom(i)) / 2
+                drawLine(muted, Offset(left, y), Offset(left + (right - left) * own, y), 1.5.dp.toPx())
+            }
+        },
+        onLayout = { layout = it },
+    )
+}
+
+@Composable
+fun SwipeRow(
+    id: String,
+    enabled: Boolean,
+    rightLabel: String,
+    onSwipeRight: (String) -> Unit,
+    asksBeforeDelete: Boolean,
+    background: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val c = colors
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    val offset = remember { Animatable(0f) }
+    val collapse = remember { Animatable(1f) }
+    var raw by remember { mutableFloatStateOf(0f) }
+    val threshold = with(density) { 96.dp.toPx() }
+    val band = with(density) { 80.dp.toPx() }
+    val screen = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+    fun shaped(d: Float): Float {
+        val distance = abs(d)
+        if (distance <= threshold) return d
+        val over = distance - threshold
+        return sign(d) * (threshold + band * (1 - 1 / (over / band + 1)))
+    }
+    val drag = rememberDraggableState { delta ->
+        raw += delta
+        scope.launch { offset.snapTo(shaped(raw)) }
+    }
+    Box(
+        modifier.layout { measurable, constraints ->
+            val p = measurable.measure(constraints)
+            val h = (p.height * collapse.value).roundToInt()
+            layout(p.width, h) { p.place(0, 0) }
+        }.clipToBounds(),
+    ) {
+        val o = offset.value
+        if (o != 0f) {
+            val pad = with(density) { 8.dp.toPx() }
+            Box(Modifier.matchParentSize().padding(vertical = 6.dp)) {
+                if (o > 0f) {
+                    Row(
+                        Modifier.padding(start = GUTTER / 3).width(with(density) { maxOf(0f, o - pad).toDp() }).fillMaxSize()
+                            .graphicsLayer { alpha = (o / with(density) { 24.dp.toPx() }).coerceIn(0f, 1f) }
+                            .clip(CircleShape).background(c.accent).padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(Ic.ArrowRight, c.onAccent, 16.dp)
+                        Txt(rightLabel, Type.captionStrong, c.onAccent, maxLines = 1)
+                    }
+                } else {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) {
+                        Row(
+                            Modifier.padding(end = GUTTER / 3).width(with(density) { maxOf(0f, -o - pad).toDp() }).fillMaxSize()
+                                .graphicsLayer { alpha = (-o / with(density) { 24.dp.toPx() }).coerceIn(0f, 1f) }
+                                .clip(CircleShape).background(c.danger).padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+                        ) {
+                            Icon(Ic.Trash, c.onDanger, 16.dp)
+                            Txt("Delete", Type.captionStrong, c.onDanger, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
+        Box(
+            Modifier.offset { IntOffset(offset.value.roundToInt(), 0) }.background(background).draggable(
+                drag,
+                Orientation.Horizontal,
+                enabled = enabled,
+                onDragStarted = { raw = offset.value },
+                onDragStopped = {
+                    val d = raw
+                    raw = 0f
+                    val right = d > 0
+                    when {
+                        abs(d) < threshold -> offset.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 520f))
+                        !right && asksBeforeDelete -> {
+                            offset.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 520f))
+                            TodoActions.delete(id)
+                        }
+                        else -> {
+                            offset.animateTo(if (right) screen else -screen, tween(110))
+                            collapse.animateTo(0f, tween(110))
+                            if (right) onSwipeRight(id) else TodoActions.delete(id)
+                        }
+                    }
+                },
+            ),
+        ) { content() }
+    }
+}
+
+@Composable
+fun Composer(home: Home, where: Where, modifier: Modifier = Modifier) {
+    val c = colors
+    var value by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
+    var noteOpen by remember { mutableStateOf(false) }
+    var ignoreRepeat by remember { mutableStateOf(false) }
+    val input = remember { FocusRequester() }
+    val noteFocus = remember { FocusRequester() }
+    var inputFocused by remember { mutableStateOf(false) }
+    var noteFocused by remember { mutableStateOf(false) }
+    var hadFocus by remember { mutableStateOf(false) }
+    val preview = if (home is Home.Day && !ignoreRepeat) ParseRepeat.parse(value) else null
+
+    LaunchedEffect(Unit) { runCatching { input.requestFocus() } }
+    LaunchedEffect(inputFocused, noteFocused) {
+        if (inputFocused || noteFocused) {
+            hadFocus = true
+            return@LaunchedEffect
+        }
+        if (!hadFocus) return@LaunchedEffect
+        delay(80)
+        if (!inputFocused && !noteFocused) Editor.closeComposer(true)
+    }
+    LaunchedEffect(noteOpen) { if (noteOpen) runCatching { noteFocus.requestFocus() } }
+
+    fun change(next: String) {
+        value = next
+        Editor.draftText = next
+        if (next.isEmpty()) {
+            ignoreRepeat = false
+            Editor.keepWords = false
+        }
+    }
+
+    fun submit() {
+        val text = value.trim()
+        if (text.isEmpty()) {
+            Editor.closeComposer(false)
+            return
+        }
+        val created = TodoActions.addFromInput(text, home, where, ignoreRepeat, note)
+        change("")
+        note = ""
+        Editor.draftDescription = ""
+        noteOpen = false
+        if (where != Where.Bottom && created != null) Editor.composer = ComposerState(home, Where.After(created.id))
+        runCatching { input.requestFocus() }
+    }
+
+    Column(modifier.fillMaxWidth().hairlineBottom(c.hairline).padding(bottom = Space.xs)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = ROW_MIN_HEIGHT).padding(start = GUTTER, end = GUTTER - Space.m), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.padding(end = 13.dp).size(CHECKBOX_SIZE).border(1.75.dp, c.hairline, CircleShape))
+            BasicTextField(
+                value = value,
+                onValueChange = { next ->
+                    if (next.contains('\n')) {
+                        change(next.replace("\n", ""))
+                        submit()
+                    } else change(next)
+                },
+                modifier = Modifier.weight(1f).focusRequester(input).onFocusChanged { inputFocused = it.isFocused }.padding(vertical = Space.m),
+                textStyle = Type.body.copy(color = c.ink),
+                cursorBrush = SolidColor(c.accent),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { submit() }),
+                decorationBox = { inner ->
+                    Box {
+                        if (value.isEmpty()) Txt("New to-do", Type.body, c.inkMuted)
+                        inner()
+                    }
+                },
+            )
+            Box(
+                Modifier.size(HIT_TARGET).tap(label = if (noteOpen) "Edit description" else "Add description") {
+                    if (noteOpen) runCatching { noteFocus.requestFocus() } else noteOpen = true
+                },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Ic.TextLines, if (noteOpen || note.isNotEmpty()) c.accentText else c.inkMuted, 20.dp)
+            }
+        }
+        if (noteOpen) {
+            BasicTextField(
+                value = note,
+                onValueChange = {
+                    note = it.take(2000)
+                    Editor.draftDescription = note
+                },
+                modifier = Modifier.fillMaxWidth().padding(start = GUTTER + 35.dp, end = GUTTER, bottom = Space.s).focusRequester(noteFocus).onFocusChanged { noteFocused = it.isFocused },
+                textStyle = Type.secondary.copy(color = c.ink),
+                cursorBrush = SolidColor(c.accent),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                decorationBox = { inner ->
+                    Box {
+                        if (note.isEmpty()) Txt("Description", Type.secondary, c.inkMuted)
+                        inner()
+                    }
+                },
+            )
+        }
+        if (preview != null) {
+            Row(Modifier.padding(start = GUTTER + 35.dp, bottom = Space.s)) {
+                Box(Modifier.tap(label = "Remove repeat") {
+                    ignoreRepeat = true
+                    Editor.keepWords = true
+                }) {
+                    Chip {
+                        Icon(Ic.Repeat, c.accentText, 12.dp)
+                        Txt(preview.label, Type.captionStrong, c.accentText)
+                        Txt("×", Type.caption, c.accentText)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun EditToolbar() {
+    val c = colors
+    val editingId = Editor.editingId
+    val composing = Editor.composer != null
+    if (editingId == null && !composing) return
+    if (!WindowInsets.isImeVisible) return
+    Box(Modifier.fillMaxSize().imePadding(), contentAlignment = Alignment.BottomCenter) {
+        Row(
+            Modifier.fillMaxWidth().height(TOOLBAR_HEIGHT).background(c.surface).hairlineTop(c.hairline).padding(horizontal = Space.s),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (editingId != null) {
+                Box(Modifier.size(HIT_TARGET).tap(label = "Make a to-do") {
+                    Editor.stopEditing()
+                    TodoActions.toggleHeading(editingId)
+                }, contentAlignment = Alignment.Center) { Icon(Ic.Heading, c.ink, 20.dp) }
+                Box(Modifier.size(HIT_TARGET).tap(label = "Delete") {
+                    Editor.stopEditing()
+                    TodoActions.delete(editingId)
+                }, contentAlignment = Alignment.Center) { Icon(Ic.Trash, c.dangerText, 20.dp) }
+            } else {
+                Txt("Try “every monday” or “# Heading”", Type.caption, c.inkMuted, Modifier.padding(start = Space.m))
+            }
+            Spacer(Modifier.weight(1f))
+            Box(Modifier.size(HIT_TARGET).tap(label = "Done") { Editor.commitAll() }, contentAlignment = Alignment.Center) {
+                Icon(Ic.Check, c.accentText, 22.dp, stroke = 2.5f)
+            }
+        }
+    }
+}
+
+@Composable
+fun DragGhost() {
+    val c = colors
+    if (RowDrag.draggingId == null) return
+    val density = LocalDensity.current
+    val size = RowDrag.ghostSize
+    Box(
+        Modifier.offset { IntOffset(RowDrag.ghostX.roundToInt(), RowDrag.ghostY.roundToInt()) }
+            .size(with(density) { size.width.toDp() }, with(density) { size.height.toDp() })
+            .graphicsLayer { scaleX = 1.02f; scaleY = 1.02f }
+            .shadow(10.dp, RoundedCornerShape(12.dp))
+            .background(c.surface, RoundedCornerShape(12.dp)),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Row(Modifier.padding(start = GUTTER, end = GUTTER), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.padding(end = 13.dp).size(CHECKBOX_SIZE).border(1.75.dp, c.inkMuted, CircleShape))
+            Txt(RowDrag.ghostText, Type.body, maxLines = 2)
+        }
+    }
+}

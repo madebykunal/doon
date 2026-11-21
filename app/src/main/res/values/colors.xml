@@ -1,0 +1,6 @@
+<resources>
+    <color name="brand">#1F02A5</color>
+    <color name="bg">#FAF8F5</color>
+    <color name="widget_ink">#17171A</color>
+    <color name="widget_muted">#6E6C67</color>
+</resources>
