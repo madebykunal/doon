@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -150,7 +151,7 @@ fun Modifier.tap(
 fun Modifier.blockTaps(): Modifier = pointerInput(Unit) { detectTapGestures { } }
 
 fun Modifier.hairlineBottom(color: Color): Modifier = drawBehind {
-    val w = 1f
+    val w = 1.dp.toPx()
     drawLine(color, Offset(0f, size.height - w / 2), Offset(size.width, size.height - w / 2), w)
 }
 
@@ -208,12 +209,12 @@ fun Checkbox(checked: Boolean, onToggle: () -> Unit) {
     Box(Modifier.size(HIT_TARGET).tap(role = Role.Checkbox, onClick = onToggle), contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(CHECKBOX_SIZE)) {
             val unit = size.width / 22f
-            val stroke = 1.75f * unit
-            drawRect(c.inkMuted, Offset(stroke / 2, stroke / 2), Size(size.width - stroke, size.height - stroke), style = Stroke(stroke))
+            val corner = CornerRadius(6.dp.toPx())
+            drawRoundRect(c.accent.copy(alpha = if (c.dark) 0.28f else 0.18f), cornerRadius = corner)
             val p = progress.value
             if (p > 0f) {
                 val side = size.width * minOf(1f, p * 1.6f)
-                drawRect(c.accent, Offset((size.width - side) / 2, (size.height - side) / 2), Size(side, side))
+                drawRoundRect(c.accent, Offset((size.width - side) / 2, (size.height - side) / 2), Size(side, side), corner)
                 val t = maxOf(0f, p - 0.35f) / 0.65f
                 if (t > 0f) {
                     val measure = PathMeasure()

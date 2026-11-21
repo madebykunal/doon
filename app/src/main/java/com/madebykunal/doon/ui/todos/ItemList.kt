@@ -20,6 +20,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import com.madebykunal.doon.ui.components.hairlineBottom
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -119,8 +122,8 @@ private sealed interface Entry {
         override val key get() = item.todo.id
     }
 
-    data object EmptyItem : Entry {
-        override val key = "__empty"
+    data class Filler(val index: Int) : Entry {
+        override val key get() = "__fill$index"
     }
 }
 
@@ -142,9 +145,16 @@ fun ItemList(home: Home, rightLabel: String, onSwipeRight: (String) -> Unit, emp
     val state = rememberLazyListState()
     val onDay = home is Home.Day
 
+    val rowPx = with(density) { 60.dp.toPx() }
+    val fillers by remember(shown.size) {
+        derivedStateOf {
+            val viewport = state.layoutInfo.viewportSize.height
+            if (viewport == 0) 0 else maxOf(0, kotlin.math.ceil(viewport / rowPx).toInt() - shown.size)
+        }
+    }
     val entries = buildList {
         shown.forEach { add(Entry.RowItem(it)) }
-        if (shown.isEmpty()) add(Entry.EmptyItem)
+        repeat(fillers) { add(Entry.Filler(it)) }
     }
 
     var pull by remember { mutableFloatStateOf(0f) }
@@ -278,18 +288,14 @@ fun ItemList(home: Home, rightLabel: String, onSwipeRight: (String) -> Unit, emp
         LazyColumn(
             state = state,
             userScrollEnabled = dragKey == null,
-            contentPadding = PaddingValues(bottom = bottom),
+            contentPadding = PaddingValues(bottom = if (fillers > 0) 0.dp else bottom),
             modifier = Modifier.fillMaxSize()
                 .graphicsLayer { translationY = pull }
                 .onGloballyPositioned { listCoords = it }
                 .pointerInput(home) {
                     detectTapGestures { pos ->
-                        val last = state.layoutInfo.visibleItemsInfo.lastOrNull()
-                        val end = when {
-                            last == null -> 0
-                            last.key == Entry.EmptyItem.key -> last.offset
-                            else -> last.offset + last.size
-                        }
+                        val last = state.layoutInfo.visibleItemsInfo.lastOrNull { (it.key as? String)?.startsWith("__") == false }
+                        val end = if (last == null) 0 else last.offset + last.size
                         if (pos.y <= end) return@detectTapGestures
                         if (Editor.editingId != null || Editor.composer != null) Editor.commitAll()
                         else Editor.openComposer(home, Where.Bottom)
@@ -335,7 +341,7 @@ fun ItemList(home: Home, rightLabel: String, onSwipeRight: (String) -> Unit, emp
                         onSwipeRight,
                         Modifier.animateItem(fadeInSpec = null).alpha(if (dragKey == entry.key) 0f else 1f),
                     )
-                    Entry.EmptyItem -> Txt(emptyText, Type.secondary, c.inkMuted, Modifier.fillMaxWidth().padding(top = 48.dp), align = TextAlign.Center)
+                    is Entry.Filler -> Box(Modifier.fillMaxWidth().height(60.dp).hairlineBottom(c.hairline))
                 }
             }
         }

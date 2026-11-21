@@ -39,7 +39,7 @@ object Space {
 val GUTTER = 20.dp
 val ROW_MIN_HEIGHT = 52.dp
 val HIT_TARGET = 44.dp
-val CHECKBOX_SIZE = 22.dp
+val CHECKBOX_SIZE = 24.dp
 val RADIUS_CARD = 16.dp
 val RADIUS_DOCK = 24.dp
 val DOCK_HEIGHT = 60.dp
@@ -70,9 +70,9 @@ fun hex(value: String): Color = Color(ColorMath.toArgb(value))
 
 private class Base(val bg: String, val surface: String, val ink: String, val inkMuted: String, val hairline: Color)
 
-private val LIGHT = Base("#FAF8F5", "#FFFFFF", "#17171A", "#6E6C67", Color(23, 23, 26, (0.07f * 255).toInt()))
-private val DARK = Base("#0F0F11", "#18181B", "#F2F1EE", "#9A9894", Color(255, 255, 255, (0.08f * 255).toInt()))
-private val BLACK = Base("#000000", "#0B0B0C", "#F2F1EE", "#9A9894", Color(255, 255, 255, (0.08f * 255).toInt()))
+private val LIGHT = Base("#FAF8F5", "#FFFFFF", "#17171A", "#6E6C67", Color(23, 23, 26, (0.11f * 255).toInt()))
+private val DARK = Base("#141416", "#1E1F23", "#F2F1EE", "#9A9894", Color(255, 255, 255, (0.11f * 255).toInt()))
+private val BLACK = Base("#000000", "#111113", "#F2F1EE", "#9A9894", Color(255, 255, 255, (0.12f * 255).toInt()))
 
 @Immutable
 data class DoonColors(
@@ -133,8 +133,8 @@ fun buildColors(kind: String, accentHex: String): DoonColors {
         accentWash = hex(ColorMath.mix(base.bg, accent, if (light) 0.05 else 0.08)),
         accentText = hex(ColorMath.ensureContrast(ColorMath.ensureContrast(accent, base.bg, 4.5), base.surface, 4.5)),
         onAccent = hex(ColorMath.readableOn(accent)),
-        accentDeep = hex(ColorMath.mix(accent, "#000000", if (light) 0.32 else 0.45)),
-        onAccentDeep = hex(ColorMath.readableOn(ColorMath.mix(accent, "#000000", if (light) 0.32 else 0.45))),
+        accentDeep = hex(ColorMath.mix(accent, "#000000", 0.3)),
+        onAccentDeep = hex(ColorMath.readableOn(ColorMath.mix(accent, "#000000", 0.3))),
         danger = hex(danger),
         dangerText = hex(ColorMath.ensureContrast(ColorMath.ensureContrast(danger, base.bg, 4.5), base.surface, 4.5)),
         onDanger = Color.White,
@@ -145,6 +145,8 @@ fun buildColors(kind: String, accentHex: String): DoonColors {
 val LocalColors = staticCompositionLocalOf { buildColors("light", "#1E9E9A") }
 
 val colors: DoonColors @Composable get() = LocalColors.current
+
+private val Condensed = FontFamily(Font(R.font.barlow_condensed_bold, FontWeight.Bold))
 
 private val Display = FontFamily(
     Font(R.font.bricolage_semibold, FontWeight.SemiBold),
@@ -168,16 +170,17 @@ object Type {
     val numeral = style(Display, FontWeight.Bold, 56, 60)
     val title = style(Display, FontWeight.Bold, 28, 34)
     val h2 = style(Display, FontWeight.SemiBold, 20, 26)
-    val body = style(TextFamily, FontWeight.Normal, 17, 23)
+    val body = style(TextFamily, FontWeight.Medium, 17, 23)
     val bodyStrong = style(TextFamily, FontWeight.SemiBold, 17, 23)
     val secondary = style(TextFamily, FontWeight.Normal, 15, 20)
     val secondaryStrong = style(TextFamily, FontWeight.Medium, 15, 20)
     val caption = style(TextFamily, FontWeight.Normal, 13, 17)
     val captionStrong = style(TextFamily, FontWeight.Medium, 13, 17)
     val micro = style(TextFamily, FontWeight.Medium, 11, 14)
-    val display = style(Display, FontWeight.Bold, 28, 32).copy(letterSpacing = (-0.3).sp)
-    val listName = style(Display, FontWeight.Bold, 26, 32).copy(letterSpacing = (-0.3).sp)
-    val nav = style(Display, FontWeight.Bold, 17, 22).copy(letterSpacing = 0.4.sp)
+    val display = style(Condensed, FontWeight.Bold, 32, 36)
+    val listName = style(Condensed, FontWeight.Bold, 30, 34)
+    val nav = style(Condensed, FontWeight.Bold, 24, 28)
+    val heading = style(TextFamily, FontWeight.SemiBold, 16, 22).copy(letterSpacing = 0.6.sp)
     val label = style(TextFamily, FontWeight.SemiBold, 12, 16).copy(letterSpacing = 1.2.sp)
 }
 

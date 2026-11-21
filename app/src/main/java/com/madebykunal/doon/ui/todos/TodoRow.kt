@@ -1,6 +1,8 @@
 package com.madebykunal.doon.ui.todos
 
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -148,7 +150,7 @@ fun TodoRow(todo: Todo, count: Int, rightLabel: String, onSwipeRight: (String) -
     val c = colors
     val editing = Editor.editingId == todo.id
     val highlight = todo.highlight
-    val background = if (highlight != null) c.highlightTint(highlight) else if (todo.isHeading) c.surface else c.bg
+    val background = if (highlight != null) c.highlightTint(highlight) else c.bg
     SwipeRow(
         id = todo.id,
         enabled = !editing && RowDrag.draggingId == null,
@@ -159,10 +161,11 @@ fun TodoRow(todo: Todo, count: Int, rightLabel: String, onSwipeRight: (String) -
         modifier = modifier,
     ) {
         val bar = if (highlight != null) c.highlightBar(highlight) else null
+        val card = if (todo.isHeading) Modifier.padding(horizontal = Space.s, vertical = 6.dp).clip(RoundedCornerShape(8.dp)).background(c.surface) else Modifier
         Row(
-            Modifier.fillMaxWidth().heightIn(min = ROW_MIN_HEIGHT).hairlineBottom(c.hairline)
+            Modifier.fillMaxWidth().hairlineBottom(c.hairline).then(card).heightIn(min = if (todo.isHeading) 48.dp else 60.dp)
                 .drawBehind { if (bar != null) drawRect(bar, size = Size(3.dp.toPx(), size.height)) }
-                .padding(start = GUTTER - 11.dp, end = GUTTER),
+                .padding(start = if (todo.isHeading) GUTTER - Space.s else GUTTER - 11.dp, end = if (todo.isHeading) GUTTER - Space.s else GUTTER),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (todo.isHeading) HeadingBody(todo, count, editing) else TodoBody(todo, editing)
@@ -205,9 +208,9 @@ private fun androidx.compose.foundation.layout.RowScope.TodoBody(todo: Todo, edi
 private fun androidx.compose.foundation.layout.RowScope.HeadingBody(todo: Todo, count: Int, editing: Boolean) {
     val c = colors
     val rotation by animateFloatAsState(if (todo.collapsed) -90f else 0f, tween(160), label = "chevron")
-    Box(Modifier.weight(1f).padding(start = 11.dp)) {
+    Box(Modifier.weight(1f).padding(start = 4.dp)) {
         if (editing) RowInput(todo.text, Type.bodyStrong)
-        else InlineText(todo.text.uppercase(), Type.nav.copy(color = c.ink), Modifier.fillMaxWidth().tap(label = "Edit heading") { Editor.startEditing(todo.id, todo.text) }.padding(start = 2.dp, top = 14.dp, bottom = 14.dp))
+        else InlineText(todo.text.uppercase(), Type.heading.copy(color = c.ink), Modifier.fillMaxWidth().tap(label = "Edit heading") { Editor.startEditing(todo.id, todo.text) }.padding(start = 2.dp, top = 14.dp, bottom = 14.dp))
     }
     if (!editing) {
         Row(
@@ -324,7 +327,7 @@ fun SwipeRow(
                     Row(
                         Modifier.padding(start = GUTTER / 3).width(with(density) { maxOf(0f, o - pad).toDp() }).fillMaxSize()
                             .graphicsLayer { alpha = (o / with(density) { 24.dp.toPx() }).coerceIn(0f, 1f) }
-                            .clip(RectangleShape).background(c.accent).padding(horizontal = 12.dp),
+                            .clip(CircleShape).background(c.accent).padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
@@ -336,7 +339,7 @@ fun SwipeRow(
                         Row(
                             Modifier.padding(end = GUTTER / 3).width(with(density) { maxOf(0f, -o - pad).toDp() }).fillMaxSize()
                                 .graphicsLayer { alpha = (-o / with(density) { 24.dp.toPx() }).coerceIn(0f, 1f) }
-                                .clip(RectangleShape).background(c.danger).padding(horizontal = 12.dp),
+                                .clip(CircleShape).background(c.danger).padding(horizontal = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
                         ) {

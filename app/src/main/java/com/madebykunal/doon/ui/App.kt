@@ -1,6 +1,7 @@
 package com.madebykunal.doon.ui
 
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
@@ -167,9 +168,9 @@ private fun Shell(imeVisible: Boolean) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             Tabs()
             if (!imeVisible && Editor.composer == null) {
-                Box(Modifier.fillMaxSize().padding(Space.xl), contentAlignment = Alignment.BottomEnd) {
+                Box(Modifier.fillMaxSize().padding(Space.l), contentAlignment = Alignment.BottomEnd) {
                     Box(
-                        Modifier.size(56.dp).shadow(6.dp, RectangleShape).background(c.accent).tap(pressedAlpha = 0.8f, label = "Add", onClick = ::pressPlus),
+                        Modifier.size(60.dp).shadow(6.dp, CircleShape).background(c.accent, CircleShape).tap(pressedAlpha = 0.8f, label = "Add", onClick = ::pressPlus),
                         contentAlignment = Alignment.Center,
                     ) { Icon(Ic.Plus, c.onAccent, 26.dp, stroke = 2.5f) }
                 }
@@ -186,7 +187,7 @@ private fun Shell(imeVisible: Boolean) {
 @Composable
 private fun BottomNav() {
     val c = colors
-    Row(Modifier.fillMaxWidth().background(c.accentDeep).navigationBarsPadding().height(64.dp)) {
+    Row(Modifier.fillMaxWidth().background(c.accentDeep).navigationBarsPadding().height(80.dp)) {
         TAB_LABELS.forEachIndexed { index, label ->
             val selected = Nav.tab == index
             Column(
@@ -197,8 +198,8 @@ private fun BottomNav() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Txt(label.uppercase(), Type.nav, c.onAccentDeep.copy(alpha = if (selected) 1f else 0.62f), maxLines = 1, unscaled = true)
-                Box(Modifier.padding(top = 5.dp).size(4.dp).background(if (selected) c.onAccentDeep else Color.Transparent))
+                Txt(label.uppercase(), Type.nav, c.onAccentDeep, maxLines = 1, unscaled = true)
+                Box(Modifier.padding(top = 4.dp).size(5.dp).background(if (selected) c.onAccentDeep else Color.Transparent, CircleShape))
             }
         }
     }
