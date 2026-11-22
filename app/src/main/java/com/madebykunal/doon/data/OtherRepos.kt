@@ -1,6 +1,7 @@
 package com.madebykunal.doon.data
 
 import com.madebykunal.doon.lib.DateStr
+import com.madebykunal.doon.lib.Dates
 import com.madebykunal.doon.lib.DayLog
 import com.madebykunal.doon.lib.FractionalIndex
 import org.json.JSONArray
@@ -125,6 +126,11 @@ object CountdownRepo {
     fun softDelete(id: String) = update(id, "deleted_at" to System.currentTimeMillis())
 
     fun restore(id: String) = update(id, "deleted_at" to null)
+
+    fun countUpcoming(today: DateStr): Int = Db.one(
+        "SELECT count(*) FROM countdowns WHERE deleted_at IS NULL AND archived_at IS NULL AND NOT (kind = 'until' AND target_date < ?)",
+        listOf(today),
+    ) { it.getInt(0) } ?: 0
 }
 
 object HabitRepo {
@@ -163,6 +169,12 @@ object HabitRepo {
         if (changed == 0) Db.insert("habit_logs", values("habit_id" to habitId, "date" to date, "count" to count, "created_at" to now, "updated_at" to now))
         Live.changed(T.HABIT_LOGS)
     }
+
+    fun countDue(today: DateStr): Int = Db.one(
+        "SELECT count(*) FROM habits h WHERE h.deleted_at IS NULL AND h.archived_at IS NULL AND h.kind = 'build' AND (h.days & ?) != 0 " +
+            "AND NOT EXISTS (SELECT 1 FROM habit_logs l WHERE l.habit_id = h.id AND l.date = ? AND l.count >= h.target)",
+        listOf(1 shl Dates.weekdayOf(today), today),
+    ) { it.getInt(0) } ?: 0
 
     fun eraseDeleted(deletedBefore: Long) {
         val gone = Db.query("SELECT id FROM habits WHERE deleted_at < ? AND title != ''", listOf(deletedBefore)) { it.getString(0) }

@@ -18,11 +18,6 @@ object Ui {
     var cleared by mutableIntStateOf(0)
     var recenter by mutableIntStateOf(0)
 
-    fun goToToday() {
-        selectedDate = today
-        calendarOpen = false
-        recenter++
-    }
     var resumes by mutableIntStateOf(0)
 
     fun refreshToday(): Boolean {

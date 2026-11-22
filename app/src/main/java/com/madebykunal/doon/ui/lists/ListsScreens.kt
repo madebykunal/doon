@@ -1,5 +1,6 @@
 package com.madebykunal.doon.ui.lists
 
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -99,7 +100,7 @@ private fun GroupSection(group: ListGroup, lists: List<TodoList>, counts: Map<St
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Txt(group.name.uppercase(), Type.label, c.inkMuted, maxLines = 1, modifier = Modifier.weight(1f))
-                if (collapsed && lists.isNotEmpty() && Prefs.listFolderCounts) Txt(lists.size.toString(), Type.secondaryStrong, c.inkMuted, tabularNums = true)
+                if (collapsed && lists.isNotEmpty() && Prefs.listFolderCounts) CountText(lists.size)
             }
         }
         if (!collapsed) ReorderColumn(lists, counts, if (band) c.surface else c.bg)
@@ -170,7 +171,7 @@ private fun ListRow(list: TodoList, count: Int, bg: androidx.compose.ui.graphics
         horizontalArrangement = Arrangement.spacedBy(Space.m),
     ) {
         Txt(list.name.uppercase(), Type.listName, maxLines = 1, modifier = Modifier.weight(1f))
-        if (count > 0 && Prefs.listCounts) Txt(count.toString(), Type.secondaryStrong, c.inkMuted, tabularNums = true)
+        if (count > 0 && Prefs.listCounts) CountText(count)
     }
 }
 
@@ -182,4 +183,11 @@ fun ListDetailScreen(id: String) {
         ScreenHeader(list?.name ?: "", back = true, onTitle = { Nav.openSheet(SheetRoute.ListEditor(listId = id)) })
         ItemList(Home.InList(id), "Today", TodoActions::moveToToday, "Nothing here yet. Tap anywhere to add.")
     }
+}
+
+@Composable
+private fun CountText(n: Int) {
+    val c = colors
+    if (Prefs.listBigCounts) Txt(n.toString(), Type.display.copy(fontSize = 30.sp, lineHeight = 32.sp), c.accentText, maxLines = 1, tabularNums = true, unscaled = true)
+    else Txt(n.toString(), Type.secondaryStrong, c.inkMuted, tabularNums = true)
 }

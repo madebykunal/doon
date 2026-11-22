@@ -210,7 +210,7 @@ private fun CountdownRow(item: Countdown, today: String, modifier: Modifier, hig
     ) {
         Box(Modifier.widthIn(min = 64.dp)) {
             Txt(
-                display.value.removeSuffix(" 🎉").uppercase(),
+                if (display.numeric) display.value.padStart(2, '0') else display.value.removeSuffix(" 🎉").uppercase(),
                 Type.display.copy(fontSize = if (display.numeric) 34.sp else 18.sp, lineHeight = 36.sp),
                 number, maxLines = 1, tabularNums = true, unscaled = true,
             )
@@ -268,7 +268,7 @@ private fun measures(value: Long, unit: String): List<Measure> {
 }
 
 private fun formatMeasure(v: Float, decimals: Boolean): String =
-    if (decimals) String.format(java.util.Locale.getDefault(), "%,.1f", v) else String.format(java.util.Locale.getDefault(), "%,d", v.roundToLong())
+    if (decimals) String.format(java.util.Locale.getDefault(), "%,.1f", v) else String.format(java.util.Locale.getDefault(), "%,d", v.roundToLong()).padStart(2, '0')
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

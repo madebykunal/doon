@@ -109,7 +109,7 @@ fun SettingsScreen() {
     Ui.resumes
     val missing = missingPermissions()
     Column(Modifier.fillMaxSize()) {
-        ScreenHeader("Settings") {
+        ScreenHeader("Settings", onBar = { Nav.popScreen() }) {
             val turn = remember { Animatable(180f) }
             LaunchedEffect(Unit) { turn.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 0.55f, stiffness = 300f)) }
             Box(
@@ -154,6 +154,9 @@ fun SettingsPage(id: String) {
                     "general" -> GeneralPage()
                     "appearance" -> AppearancePage { colorPicker = true }
                     "today" -> {
+                        SwitchRow("Block tab bar with counts", Prefs.tabStyle == "block", "A filled block marks your tab, with how much is waiting in each") {
+                            Prefs.setTabStyle(if (it) "block" else "classic")
+                        }
                         SwitchRow("Week strip at the top", Prefs.weekStripTop, "Shows the days just under the date", Prefs::setWeekStripTop)
                         SwitchRow("Roll over unfinished to-dos", Prefs.rollover, "Moves them to today when a new day starts", Prefs::setRollover)
                         SwitchRow("Celebrate a cleared day", Prefs.celebration, null, Prefs::setCelebration)
@@ -161,6 +164,7 @@ fun SettingsPage(id: String) {
                     "lists" -> {
                         SwitchRow("Count on collapsed folders", Prefs.listFolderCounts, "How many lists a closed folder holds", Prefs::setListFolderCounts)
                         SwitchRow("Count on lists", Prefs.listCounts, "How many open to-dos each list has", Prefs::setListCounts)
+                        SwitchRow("Big counts", Prefs.listBigCounts, "Counts in the heading font, larger", Prefs::setListBigCounts)
                     }
                     "soon" -> SwitchRow("Show past countdowns", Prefs.soonShowPast, "Keeps finished ones under Past", Prefs::setSoonShowPast)
                     "habits" -> SwitchRow("Show the last 7 days", Prefs.habitWeekDots, "A row of dots on each habit", Prefs::setHabitWeekDots)
@@ -193,6 +197,7 @@ private fun GeneralPage() {
     SettingRow("Week starts on", right = { Txt(Dates.format(Dates.addDays("2026-11-01", Prefs.weekStart), "EEEE"), Type.secondary, c.accentText) }) {
         Prefs.setWeekStartsOn((Prefs.weekStart + 1) % 7)
     }
+    SwitchRow("Completed to-dos go to the bottom", Prefs.sinkCompleted, "Keeps what’s left at the top", Prefs::setSinkCompleted)
     SwitchRow("Full-screen alerts", Prefs.fullScreenAlerts, "Reminders wake the screen and show over other apps") { on ->
         Prefs.setFullScreenAlerts(on)
         Reminders.resyncAll()
@@ -245,7 +250,7 @@ private fun AppearancePage(onCustom: () -> Unit) {
                         },
                         contentAlignment = Alignment.Center,
                     ) {
-                        val selected = Prefs.accent == id
+                        val selected = (Accents.renamed[Prefs.accent] ?: Prefs.accent) == id
                         val (fill, on) = c.accentFor(if (id == "custom") Prefs.customColor else Accents.presets.getValue(id).second)
                         val ring = if (selected) Modifier.border(2.dp, c.ink, CircleShape).padding(4.dp) else Modifier
                         Box(Modifier.size(40.dp).then(ring), contentAlignment = Alignment.Center) {
@@ -276,10 +281,16 @@ private fun AppearancePage(onCustom: () -> Unit) {
     SubLabel("Font")
     Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER, vertical = Space.s), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         FONTS.forEach { (id, label) ->
-            Choice(label, Prefs.font == id, Modifier.weight(1f), style = headingSample(id).copy(fontSize = 18.sp, lineHeight = 22.sp)) { Prefs.setFont(id) }
+            Choice(label, (FONTS.firstOrNull { it.first == Prefs.font }?.first ?: "condensed") == id, Modifier.weight(1f), style = headingSample(id).copy(fontSize = 18.sp, lineHeight = 22.sp)) { Prefs.setFont(id) }
         }
     }
     Txt("Changes headings, numbers and the tab bar.", Type.caption, c.inkMuted, Modifier.padding(horizontal = GUTTER).padding(top = Space.xs, bottom = Space.s))
+    SubLabel("Add button")
+    Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER, vertical = Space.s), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf("circle" to "Circle", "square" to "Square", "block" to "Block").forEach { (id, label) ->
+            Choice(label, Prefs.plusShape == id, Modifier.weight(1f)) { Prefs.setPlusShape(id) }
+        }
+    }
 }
 
 private fun missingPermissions(): Int {
@@ -375,7 +386,11 @@ private fun SettingRow(label: String, detail: String? = null, right: (@Composabl
 
 @Composable
 private fun SwitchRow(label: String, value: Boolean, detail: String?, onChange: (Boolean) -> Unit) {
-    SettingRow(label, detail, right = { Toggle(value) }) { onChange(!value) }
+    val view = androidx.compose.ui.platform.LocalView.current
+    SettingRow(label, detail, right = { Toggle(value) }) {
+        view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+        onChange(!value)
+    }
 }
 
 private const val MIN_BRIGHTNESS = 0.2

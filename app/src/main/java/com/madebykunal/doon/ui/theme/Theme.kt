@@ -48,20 +48,22 @@ val TOOLBAR_HEIGHT = 52.dp
 
 object Accents {
     val presets = linkedMapOf(
+        "lagoon" to ("Lagoon" to "#12A594"),
+        "cobalt" to ("Cobalt" to "#4C6EF5"),
+        "sky" to ("Sky" to "#2E9BF0"),
+        "iris" to ("Iris" to "#7C5CFA"),
+        "rose" to ("Rose" to "#F0487D"),
+        "coral" to ("Coral" to "#FF6B4A"),
+        "marigold" to ("Marigold" to "#F5A524"),
+        "lime" to ("Lime" to "#C5F04A"),
+        "mint" to ("Mint" to "#3CCB8E"),
         "ink" to ("Ink" to "#2B2B30"),
-        "tomato" to ("Tomato" to "#E5484D"),
-        "coral" to ("Coral" to "#F2765A"),
-        "marigold" to ("Marigold" to "#E9A23B"),
-        "sage" to ("Sage" to "#5B9A6F"),
-        "lagoon" to ("Lagoon" to "#1E9E9A"),
-        "cobalt" to ("Cobalt" to "#3B5BDB"),
-        "iris" to ("Iris" to "#6E56CF"),
-        "plum" to ("Plum" to "#A23E8C"),
-        "moss" to ("Moss" to "#6B7A2E"),
     )
+    val renamed = mapOf("tomato" to "coral", "sage" to "mint", "plum" to "rose", "moss" to "lime")
 }
 
-fun accentHex(): String = if (Prefs.accent == "custom") Prefs.customColor else Accents.presets[Prefs.accent]?.second ?: "#1E9E9A"
+fun accentHex(): String = if (Prefs.accent == "custom") Prefs.customColor
+else Accents.presets[Accents.renamed[Prefs.accent] ?: Prefs.accent]?.second ?: "#12A594"
 
 val highlightIds = listOf("yellow", "green", "blue", "pink")
 private val highlightBars = mapOf("yellow" to "#E3B341", "green" to "#6DB585", "blue" to "#6C9EE0", "pink" to "#E88BB0")
@@ -171,15 +173,21 @@ private class Headings(family: FontFamily, weight: FontWeight, spacing: Float) {
     val nav = style(family, weight, 20, 24).copy(letterSpacing = spacing.sp)
 }
 
-val FONTS = listOf("condensed" to "Doon", "inter" to "Inter", "bricolage" to "Bricolage")
+val FONTS = listOf("condensed" to "Doon", "bricolage" to "Bricolage")
 
 private val headings = mapOf(
     "condensed" to Headings(Condensed, FontWeight.Medium, 0.2f),
-    "inter" to Headings(TextFamily, FontWeight.SemiBold, -0.2f),
     "bricolage" to Headings(Display, FontWeight.SemiBold, -0.2f),
 )
 
 private val current: Headings get() = headings[Prefs.font] ?: headings.getValue("condensed")
+
+private const val BRICOLAGE_SCALE = 0.92f
+
+fun fitHeading(style: TextStyle): TextStyle {
+    if (Prefs.font != "bricolage" || style.fontFamily != Display) return style
+    return style.copy(fontSize = style.fontSize * BRICOLAGE_SCALE, lineHeight = style.lineHeight * BRICOLAGE_SCALE)
+}
 
 fun headingSample(id: String): TextStyle = (headings[id] ?: headings.getValue("condensed")).nav
 

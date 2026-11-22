@@ -318,7 +318,7 @@ fun ItemList(home: Home, rightLabel: String, onSwipeRight: (String) -> Unit, emp
                         onSwipeRight,
                         Modifier.animateItem(fadeInSpec = null).alpha(if (dragKey == entry.key) 0f else 1f),
                     )
-                    is Entry.Filler -> Box(Modifier.fillMaxWidth().height(60.dp).hairlineBottom(c.hairline))
+                    is Entry.Filler -> Box(Modifier.fillMaxWidth().height(60.dp).hairlineBottom(c.hairline, TEXT_INSET))
                 }
             }
         }

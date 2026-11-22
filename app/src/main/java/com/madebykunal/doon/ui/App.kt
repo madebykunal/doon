@@ -11,6 +11,16 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.lerp
+import com.madebykunal.doon.data.HabitRepo
+import com.madebykunal.doon.data.Live
+import com.madebykunal.doon.data.T
+import com.madebykunal.doon.ui.components.hairlineTop
+import com.madebykunal.doon.ui.onboarding.Intro
+import com.madebykunal.doon.ui.onboarding.Onboarding
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
@@ -153,7 +163,7 @@ fun App() {
     val deepIsDark = c.onAccentDeep == Color.White
     SideEffect {
         val window = (view.context as? android.app.Activity)?.window ?: return@SideEffect
-        androidx.core.view.WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = if (overlay == null) !deepIsDark else !c.dark
+        androidx.core.view.WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = if (overlay == null && Prefs.tabStyle != "block") !deepIsDark else !c.dark
     }
     Box(Modifier.fillMaxSize().background(c.bg)) {
         AnimatedContent(
@@ -181,6 +191,8 @@ fun App() {
         QuickAdd()
         SheetHost { SheetContent(it) }
         DialogHost()
+        if (!Prefs.onboarded) Onboarding()
+        Intro()
     }
 }
 
@@ -197,7 +209,11 @@ private fun Shell(imeVisible: Boolean) {
             SnackbarHost(if (imeVisible) TOOLBAR_HEIGHT + 8.dp else 92.dp)
         }
         if (!imeVisible) {
-            if (onToday && !Prefs.weekStripTop) WeekStripBar()
+            androidx.compose.animation.AnimatedVisibility(
+                onToday && !Prefs.weekStripTop,
+                enter = androidx.compose.animation.expandVertically(tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing)) + fadeIn(tween(200)),
+                exit = androidx.compose.animation.shrinkVertically(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) + fadeOut(tween(140)),
+            ) { WeekStripBar() }
             BottomNav()
         }
     }
@@ -229,8 +245,16 @@ private fun FloatingAdd() {
             Modifier.offset { IntOffset(fabOffset.value.x.roundToInt(), fabOffset.value.y.roundToInt()) }
                 .size(size)
                 .graphicsLayer { val s = scale.value * lift; scaleX = s; scaleY = s }
-                .shadow(if (home && !dragging) 6.dp else 12.dp, CircleShape)
-                .background(c.accent, CircleShape)
+                .then(
+                    when (Prefs.plusShape) {
+                        "square" -> Modifier.shadow(if (home && !dragging) 6.dp else 12.dp, RectangleShape).background(c.accent)
+                        "block" -> Modifier.drawBehind {
+                            val d = (if (dragging) 9.dp else 6.dp).toPx()
+                            drawRect(c.accentDeep, Offset(d, d), this.size)
+                        }.background(c.accent)
+                        else -> Modifier.shadow(if (home && !dragging) 6.dp else 12.dp, CircleShape).background(c.accent, CircleShape)
+                    },
+                )
                 .pointerInput(maxX, maxY) {
                     detectDragGestures(
                         onDragStart = { dragging = true },
@@ -248,7 +272,7 @@ private fun FloatingAdd() {
                         scope.launch { spin.snapTo(spin.value + amount.x * 0.6f) }
                     }
                 }
-                .tap(label = "Add") {
+                .tap(haptic = true, label = "Add") {
                     scope.launch {
                         launch { scale.animateTo(0.82f, tween(70)); scale.animateTo(1f, spring(dampingRatio = 0.35f, stiffness = 500f)) }
                         spin.animateTo(spin.targetValue.roundTo90() + 90f, spring(dampingRatio = 0.45f, stiffness = 320f))
@@ -271,21 +295,68 @@ private fun Float.roundTo90(): Float = Math.round(this / 90f) * 90f
 
 @Composable
 private fun BottomNav() {
+    if (Prefs.tabStyle == "block") BlockNav() else ClassicNav()
+}
+
+private fun selectTab(index: Int) {
+    if (Nav.tab == index) Nav.stacks[index].clear()
+    Nav.selectTab(index)
+}
+
+@Composable
+private fun ClassicNav() {
     val c = colors
     Row(Modifier.fillMaxWidth().background(c.accentDeep).navigationBarsPadding().height(80.dp)) {
         TAB_LABELS.forEachIndexed { index, label ->
             val selected = Nav.tab == index
             Column(
-                Modifier.weight(1f).fillMaxHeight().tap(pressedScale = 0.88f, label = label) {
-                    if (Nav.tab == index) Nav.stacks[index].clear()
-                    Nav.selectTab(index)
-                },
+                Modifier.weight(1f).fillMaxHeight().tap(pressedScale = 0.88f, haptic = true, label = label) { selectTab(index) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                val dot by animateFloatAsState(if (selected) 1f else 0f, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = 600f), label = "dot")
+                val dot by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = 0.5f, stiffness = 600f), label = "dot")
                 Txt(label.uppercase(), Type.nav, c.onAccentDeep.copy(alpha = 0.7f + 0.3f * dot.coerceIn(0f, 1f)), maxLines = 1, unscaled = true)
                 Box(Modifier.padding(top = 4.dp).size(5.dp).graphicsLayer { scaleX = dot; scaleY = dot; alpha = dot }.background(c.onAccentDeep, CircleShape))
+            }
+        }
+    }
+}
+
+@Composable
+private fun tabCounts(): List<Int> {
+    val today = Ui.today
+    val todos = Live.version(T.TODOS)
+    val countdowns = Live.version(T.COUNTDOWNS)
+    val habits = Live.version(T.HABITS)
+    val logs = Live.version(T.HABIT_LOGS)
+    val onToday = remember(todos, today) { TodoRepo.countOpenOn(today) }
+    val inLists = remember(todos) { ListRepo.counts().values.sum() }
+    val soon = remember(countdowns, today) { CountdownRepo.countUpcoming(today) }
+    val due = remember(habits, logs, today) { HabitRepo.countDue(today) }
+    return listOf(onToday, inLists, soon, due)
+}
+
+@Composable
+private fun BlockNav() {
+    val c = colors
+    val counts = tabCounts()
+    BoxWithConstraints(Modifier.fillMaxWidth().background(c.bg).hairlineTop(c.hairline).navigationBarsPadding().height(76.dp)) {
+        val cell = maxWidth / TAB_LABELS.size
+        val x by animateDpAsState(cell * Nav.tab, spring(dampingRatio = 0.72f, stiffness = 520f), label = "tabBlock")
+        Box(Modifier.offset { IntOffset((x + 6.dp).roundToPx(), 0) }.padding(vertical = 14.dp).width(cell - 12.dp).fillMaxHeight().background(c.accent))
+        Row(Modifier.fillMaxSize()) {
+            TAB_LABELS.forEachIndexed { index, label ->
+                val on by animateFloatAsState(if (Nav.tab == index) 1f else 0f, tween(200), label = "tabInk")
+                val ink = lerp(c.inkMuted, c.onAccent, on)
+                Row(
+                    Modifier.weight(1f).fillMaxHeight().tap(pressedScale = 0.9f, haptic = true, label = label) { selectTab(index) },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Txt(label.uppercase(), Type.nav, ink, maxLines = 1, unscaled = true)
+                    val n = counts[index]
+                    if (n > 0) Txt(if (n > 99) "99+" else n.toString(), Type.micro, ink, Modifier.padding(start = 2.dp, bottom = 12.dp), tabularNums = true, unscaled = true)
+                }
             }
         }
     }
@@ -310,7 +381,7 @@ private fun Tabs() {
                     fromDepth == toDepth -> fadeIn(tween(160)) togetherWith fadeOut(tween(120))
                     toDepth > fromDepth -> (slideInHorizontally(tween(240)) { it / 3 } + fadeIn(tween(200))) togetherWith (slideOutHorizontally(tween(240)) { -it / 6 } + fadeOut(tween(180)))
                     else -> (slideInHorizontally(tween(240)) { -it / 6 } + fadeIn(tween(200))) togetherWith (slideOutHorizontally(tween(220)) { it / 3 } + fadeOut(tween(180)))
-                }
+                } using null
             },
             label = "tabs",
         ) { (t, r, _) ->

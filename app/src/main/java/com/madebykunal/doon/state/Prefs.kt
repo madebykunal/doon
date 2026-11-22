@@ -78,6 +78,19 @@ object Prefs {
     var font by mutableStateOf("condensed")
         private set
 
+    @set:JvmName("assign_tabStyle")
+    var tabStyle by mutableStateOf("classic")
+        private set
+    @set:JvmName("assign_plusShape")
+    var plusShape by mutableStateOf("circle")
+        private set
+    @set:JvmName("assign_listBigCounts")
+    var listBigCounts by mutableStateOf(false)
+        private set
+    @set:JvmName("assign_onboarded")
+    var onboarded by mutableStateOf(false)
+        private set
+
     val weekStart: Int get() = weekStartsOn ?: Dates.localeWeekStart()
 
     fun load(context: Context) {
@@ -102,6 +115,10 @@ object Prefs {
             ?.split(",")?.mapNotNull { it.toIntOrNull() } ?: defaultCountdownAlerts
         fullScreenAlerts = prefs.getBoolean("fullScreenAlerts", fullScreenAlerts)
         font = prefs.getString("font", font)!!
+        tabStyle = prefs.getString("tabStyle", tabStyle)!!
+        plusShape = prefs.getString("plusShape", plusShape)!!
+        listBigCounts = prefs.getBoolean("listBigCounts", listBigCounts)
+        onboarded = prefs.getBoolean("onboarded", onboarded)
         taskSound = prefs.getString("taskSound", taskSound)!!
         countdownSound = prefs.getString("countdownSound", countdownSound)!!
     }
@@ -137,4 +154,8 @@ object Prefs {
     fun setTaskSound(v: String) { taskSound = v; saved("taskSound") { putString("taskSound", v) } }
     fun setCountdownSound(v: String) { countdownSound = v; saved("countdownSound") { putString("countdownSound", v) } }
     fun setFont(v: String) { font = v; saved("font") { putString("font", v) } }
+    fun setTabStyle(v: String) { tabStyle = v; saved("tabStyle") { putString("tabStyle", v) } }
+    fun setPlusShape(v: String) { plusShape = v; saved("plusShape") { putString("plusShape", v) } }
+    fun setListBigCounts(v: Boolean) { listBigCounts = v; saved("listBigCounts") { putBoolean("listBigCounts", v) } }
+    fun setOnboarded(v: Boolean) { onboarded = v; saved("onboarded") { putBoolean("onboarded", v) } }
 }

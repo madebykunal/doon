@@ -1,5 +1,6 @@
 package com.madebykunal.doon.ui.today
 
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -157,12 +158,23 @@ private fun DayHeader(date: DateStr) {
     }
     Box(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)) {
         Row(Modifier.fillMaxWidth().height(HEADER).padding(start = Space.l, end = Space.xs), verticalAlignment = Alignment.CenterVertically) {
-            Txt(
-                Dates.format(date, "EEEE, d MMMM").uppercase(),
-                Type.display,
-                maxLines = 1,
-                modifier = Modifier.weight(1f).tap(label = "Go to today", onLongClick = openMenu) { Ui.goToToday() },
-            )
+            var mode by remember(date) { mutableIntStateOf(0) }
+            val local = java.time.LocalDate.parse(date)
+            val yearDays = local.lengthOfYear()
+            val line = when (mode) {
+                1 -> "Day ${local.dayOfYear} of $yearDays"
+                2 -> (yearDays - local.dayOfYear).let { left -> "$left ${if (left == 1) "day" else "days"} left in ${local.year}" }
+                else -> Dates.format(date, "EEEE, d MMMM")
+            }
+            androidx.compose.animation.AnimatedContent(
+                targetState = line,
+                modifier = Modifier.weight(1f).tap(label = "Show more about this day", onLongClick = openMenu) { mode = (mode + 1) % 3 },
+                transitionSpec = {
+                    (androidx.compose.animation.slideInVertically(tween(260)) { it / 2 } + androidx.compose.animation.fadeIn(tween(200))) togetherWith
+                        (androidx.compose.animation.slideOutVertically(tween(200)) { -it / 2 } + androidx.compose.animation.fadeOut(tween(140)))
+                },
+                label = "dayLine",
+            ) { text -> Txt(text.uppercase(), Type.display, maxLines = 1) }
             SettingsButton()
         }
         Box(Modifier.matchParentSize(), contentAlignment = Alignment.BottomEnd) { ClearedStamp() }

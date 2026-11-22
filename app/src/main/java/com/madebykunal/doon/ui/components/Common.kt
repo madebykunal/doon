@@ -1,5 +1,9 @@
 package com.madebykunal.doon.ui.components
 
+import kotlinx.coroutines.launch
+import com.madebykunal.doon.ui.theme.fitHeading
+import androidx.compose.ui.platform.LocalView
+import android.view.HapticFeedbackConstants
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -116,10 +120,10 @@ fun Txt(
     unscaled: Boolean = false,
 ) {
     val density = LocalDensity.current
-    var s = style.copy(color = color, textAlign = align ?: TextAlign.Unspecified)
+    var s = fitHeading(style).copy(color = color, textAlign = align ?: TextAlign.Unspecified)
     if (tabularNums) s = s.copy(fontFeatureSettings = tabular)
     if (unscaled && density.fontScale != 1f) {
-        s = s.copy(fontSize = (style.fontSize.value / density.fontScale).sp, lineHeight = (style.lineHeight.value / density.fontScale).sp)
+        s = s.copy(fontSize = (s.fontSize.value / density.fontScale).sp, lineHeight = (s.lineHeight.value / density.fontScale).sp)
     }
     BasicText(text, modifier, s, maxLines = maxLines, overflow = TextOverflow.Ellipsis)
 }
@@ -130,6 +134,7 @@ fun Modifier.tap(
     pressedAlpha: Float? = null,
     pressedColor: Color? = null,
     pressedScale: Float? = null,
+    haptic: Boolean = false,
     role: Role? = Role.Button,
     label: String? = null,
     onLongClick: (() -> Unit)? = null,
@@ -137,6 +142,7 @@ fun Modifier.tap(
 ): Modifier = composed {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
+    val view = LocalView.current
     var m: Modifier = this
     if (pressedColor != null && pressed) m = m.background(pressedColor)
     if (pressedAlpha != null) m = m.alpha(if (pressed) pressedAlpha else 1f)
@@ -151,15 +157,15 @@ fun Modifier.tap(
         role = role,
         onClickLabel = label,
         onLongClick = onLongClick,
-        onClick = onClick,
+        onClick = if (haptic) ({ view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP); onClick() }) else onClick,
     )
 }
 
 fun Modifier.blockTaps(): Modifier = pointerInput(Unit) { detectTapGestures { } }
 
-fun Modifier.hairlineBottom(color: Color): Modifier = drawBehind {
+fun Modifier.hairlineBottom(color: Color, start: Dp = 0.dp): Modifier = drawBehind {
     val w = 1.dp.toPx()
-    drawLine(color, Offset(0f, size.height - w / 2), Offset(size.width, size.height - w / 2), w)
+    drawLine(color, Offset(start.toPx(), size.height - w / 2), Offset(size.width, size.height - w / 2), w)
 }
 
 fun Modifier.hairlineTop(color: Color): Modifier = drawBehind {
@@ -177,9 +183,18 @@ fun HeaderButton(ic: Ic, label: String, size: Dp = 20.dp, onClick: () -> Unit) {
 fun SettingsButton() = HeaderButton(Ic.ChevronDown, "Settings", 26.dp) { Nav.push(Route.Settings) }
 
 @Composable
-fun ScreenHeader(title: String, back: Boolean = false, onTitle: (() -> Unit)? = null, backIcon: Ic = Ic.ChevronLeft, right: @Composable RowScope.() -> Unit = {}) {
+fun ScreenHeader(
+    title: String,
+    back: Boolean = false,
+    onTitle: (() -> Unit)? = null,
+    backIcon: Ic = Ic.ChevronLeft,
+    onBar: (() -> Unit)? = null,
+    right: @Composable RowScope.() -> Unit = {},
+) {
     Row(
-        Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).height(72.dp).padding(start = Space.l, end = Space.xs),
+        Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)
+            .then(if (onBar != null) Modifier.tap(role = null, label = "Close", onClick = onBar) else Modifier)
+            .height(72.dp).padding(start = Space.l, end = Space.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (back) {
@@ -215,12 +230,21 @@ private val checkPath: Path by lazy { parsePath("M6.2 11.4 L9.7 14.8 L15.9 7.9")
 @Composable
 fun Checkbox(checked: Boolean, onToggle: () -> Unit) {
     val progress = remember { Animatable(if (checked) 1f else 0f) }
-    LaunchedEffect(checked) { progress.animateTo(if (checked) 1f else 0f, tween(160)) }
+    val pop = remember { Animatable(1f) }
+    var seen by remember { mutableStateOf(checked) }
+    LaunchedEffect(checked) {
+        if (checked == seen) return@LaunchedEffect
+        seen = checked
+        if (checked) {
+            launch { pop.snapTo(0.78f); pop.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.38f, stiffness = 520f)) }
+            progress.animateTo(1f, tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+        } else progress.animateTo(0f, tween(140))
+    }
     val c = colors
-    Box(Modifier.size(HIT_TARGET).tap(role = Role.Checkbox, onClick = onToggle), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(CHECKBOX_SIZE)) {
+    Box(Modifier.size(HIT_TARGET).tap(pressedScale = 0.86f, haptic = true, role = Role.Checkbox, onClick = onToggle), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.size(CHECKBOX_SIZE).graphicsLayer { scaleX = pop.value; scaleY = pop.value }) {
             val unit = size.width / 22f
-            val corner = CornerRadius(6.dp.toPx())
+            val corner = CornerRadius(2.dp.toPx())
             drawRoundRect(c.accent.copy(alpha = if (c.dark) 0.28f else 0.18f), cornerRadius = corner)
             val p = progress.value
             if (p > 0f) {
@@ -273,7 +297,7 @@ fun Field(
         value = value,
         onValueChange = { onChange(it.take(maxLength)) },
         modifier = modifier.focusRequester(focus).border(1.dp, c.hairline, RectangleShape).heightIn(min = minHeight).padding(horizontal = Space.m, vertical = 10.dp),
-        textStyle = style.copy(color = c.ink),
+        textStyle = fitHeading(style).copy(color = c.ink),
         singleLine = singleLine,
         cursorBrush = SolidColor(c.accent),
         keyboardOptions = KeyboardOptions(
@@ -324,13 +348,15 @@ fun OptionRow(
 
 @Composable
 fun SwitchOptionRow(label: String, value: Boolean, detail: String? = null, onChange: (Boolean) -> Unit) {
-    OptionRow(label, detail, right = { Toggle(value) }, onClick = { onChange(!value) })
+    val view = LocalView.current
+    OptionRow(label, detail, right = { Toggle(value) }, onClick = { view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP); onChange(!value) })
 }
 
 @Composable
 fun Odometer(value: String, style: TextStyle, color: Color = colors.ink) {
     val density = LocalDensity.current
-    val s = style.copy(fontSize = (style.fontSize.value / density.fontScale).sp, lineHeight = (style.lineHeight.value / density.fontScale).sp)
+    val fit = fitHeading(style)
+    val s = fit.copy(fontSize = (fit.fontSize.value / density.fontScale).sp, lineHeight = (fit.lineHeight.value / density.fontScale).sp)
     val lineHeight = with(density) { s.lineHeight.toDp() }
     Row(Modifier.height(lineHeight)) {
         value.forEachIndexed { i, char ->
@@ -491,7 +517,7 @@ fun Choice(label: String, selected: Boolean, modifier: Modifier = Modifier, styl
     val fill by animateColorAsState(if (selected) c.accent else Color.Transparent, tween(180), label = "choice")
     val ink by animateColorAsState(if (selected) c.onAccent else c.ink, tween(180), label = "choiceInk")
     Box(
-        modifier.tap(pressedScale = 0.95f, label = label, onClick = onClick).heightIn(min = 44.dp).background(fill)
+        modifier.tap(pressedScale = 0.95f, haptic = true, label = label, onClick = onClick).heightIn(min = 44.dp).background(fill)
             .border(1.dp, if (selected) c.accent else c.hairline).padding(horizontal = Space.s, vertical = Space.s),
         contentAlignment = Alignment.Center,
     ) {

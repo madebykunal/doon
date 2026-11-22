@@ -145,6 +145,8 @@ fun InlineText(source: String, style: TextStyle, modifier: Modifier = Modifier, 
     BasicText(text, modifier, style, onTextLayout = onLayout)
 }
 
+val TEXT_INSET = GUTTER + 35.dp
+
 @Composable
 fun TodoRow(todo: Todo, count: Int, rightLabel: String, onSwipeRight: (String) -> Unit, modifier: Modifier = Modifier) {
     val c = colors
@@ -161,7 +163,7 @@ fun TodoRow(todo: Todo, count: Int, rightLabel: String, onSwipeRight: (String) -
     ) {
         val bar = if (highlight != null) c.highlightBar(highlight) else null
         Row(
-            Modifier.fillMaxWidth().hairlineBottom(c.hairline).heightIn(min = 60.dp)
+            Modifier.fillMaxWidth().hairlineBottom(c.hairline, TEXT_INSET).heightIn(min = 60.dp)
                 .drawBehind { if (bar != null) drawRect(bar, size = Size(3.dp.toPx(), size.height)) }
                 .padding(start = GUTTER - 11.dp, end = GUTTER),
             verticalAlignment = Alignment.CenterVertically,
@@ -197,15 +199,18 @@ private fun StrikeText(source: String, completed: Boolean, modifier: Modifier) {
     val c = colors
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     val progress = remember { Animatable(if (completed) 1f else 0f) }
-    LaunchedEffect(completed) { if (completed) progress.animateTo(1f, tween(160)) else progress.snapTo(0f) }
+    LaunchedEffect(completed) {
+        if (completed) progress.animateTo(1f, tween(280, easing = androidx.compose.animation.core.FastOutSlowInEasing)) else progress.animateTo(0f, tween(160))
+    }
     val muted = c.inkMuted
+    val ink by androidx.compose.animation.animateColorAsState(if (completed) muted else c.ink, tween(240), label = "todoInk")
     InlineText(
         source,
-        Type.body.copy(color = if (completed) muted else c.ink),
+        Type.body.copy(color = ink, lineHeight = 24.sp),
         modifier.drawWithContent {
             drawContent()
             val l = layout ?: return@drawWithContent
-            if (!completed) return@drawWithContent
+            if (progress.value <= 0f) return@drawWithContent
             val n = l.lineCount
             for (i in 0 until n) {
                 val own = (progress.value * n - i).coerceIn(0f, 1f)

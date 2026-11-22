@@ -161,36 +161,58 @@ private fun HabitRow(day: HabitDay, today: DateStr, modifier: Modifier) {
     val c = colors
     val habit = day.habit
     val s = habit.schedule
+    val quit = habit.kind == "quit"
     val streak = HabitMath.currentStreak(s, day.logs, today)
-    val sub = buildList {
-        habit.cue?.takeIf { it.isNotBlank() }?.let { add(it) }
-        if (habit.kind == "build" && streak > 0) add("$streak ${HabitMath.streakUnit(s, streak)}")
-        if (isEmpty()) add(HabitMath.scheduleLine(s, Prefs.weekStart))
-    }.joinToString(" · ")
-    Row(
-        modifier.fillMaxWidth().alpha(if (day.slot == Slot.Rest) 0.6f else 1f)
-            .tap(pressedColor = c.hairline, label = habit.title) { Nav.push(Route.HabitDetail(habit.id)) }
-            .heightIn(min = 68.dp).padding(horizontal = GUTTER, vertical = Space.s),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Space.l),
+    val best = remember(day.logs, today) { HabitMath.bestStreak(s, day.logs, today) }
+    val stats = when {
+        quit -> if (best > streak) "Longest $best" else "Your longest run"
+        streak > 0 -> "$streak in a row · best $best"
+        best > 0 -> "Best run $best"
+        else -> HabitMath.scheduleLine(s, Prefs.weekStart)
+    }
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = GUTTER, vertical = 5.dp).alpha(if (day.slot == Slot.Rest) 0.6f else 1f)
+            .border(1.dp, if (day.slot == Slot.Done) c.accent.copy(alpha = 0.5f) else c.hairline)
+            .tap(pressedColor = c.hairline, pressedScale = 0.985f, label = habit.title) { Nav.push(Route.HabitDetail(habit.id)) }
+            .padding(Space.l),
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Txt(habit.title, Type.bodyStrong, maxLines = 1)
-            Txt(sub, Type.caption, c.inkMuted, maxLines = 1)
-            if (Prefs.habitWeekDots) {
-                val week = (0 until 7).map { HabitMath.dayState(s, day.logs, Dates.addDays(today, it - 6), today) }
-                Row(Modifier.padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    week.forEach { Box(Modifier.size(8.dp).weekDay(it, c)) }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.l)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Txt(habit.title, Type.bodyStrong, maxLines = 2)
+                habit.cue?.takeIf { it.isNotBlank() }?.let { Txt(it, Type.caption, c.inkMuted, maxLines = 1) }
+            }
+            if (quit) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Txt(streak.toString().padStart(2, '0'), Type.display.copy(fontSize = 30.sp, lineHeight = 32.sp), c.accentText, maxLines = 1, tabularNums = true, unscaled = true)
+                    Txt(HabitMath.streakUnit(s, streak).uppercase(), Type.label.copy(fontSize = 10.sp), c.inkMuted, unscaled = true)
                 }
+            } else {
+                LogBlock(day.count, habit.target) { logOnce(habit, day.count, today) }
             }
         }
-        if (habit.kind == "quit") {
-            Column(horizontalAlignment = Alignment.End) {
-                Txt(streak.toString(), Type.display.copy(fontSize = 30.sp, lineHeight = 32.sp), c.accentText, maxLines = 1, tabularNums = true, unscaled = true)
-                Txt(HabitMath.streakUnit(s, streak).uppercase(), Type.label.copy(fontSize = 10.sp), c.inkMuted, unscaled = true)
+        Row(Modifier.fillMaxWidth().padding(top = Space.m), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
+            if (Prefs.habitWeekDots) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    (0 until 7).forEach { i ->
+                        val date = Dates.addDays(today, i - 6)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Box(Modifier.size(12.dp).weekDay(HabitMath.dayState(s, day.logs, date, today), c))
+                            Txt(Dates.format(date, "EEEEE"), Type.micro.copy(fontSize = 9.sp, lineHeight = 10.sp), if (i == 6) c.ink else c.inkMuted, unscaled = true)
+                        }
+                    }
+                }
             }
-        } else {
-            LogBlock(day.count, habit.target) { logOnce(habit, day.count, today) }
+            Txt(stats, Type.caption, c.inkMuted, Modifier.weight(1f), maxLines = 1)
+            if (quit) {
+                val slipped = day.count > 0
+                Box(
+                    Modifier.tap(pressedScale = 0.92f, haptic = true, label = if (slipped) "Undo slip" else "I slipped") { logOnce(habit, day.count, today) }
+                        .heightIn(min = 36.dp).border(1.dp, if (slipped) c.inkMuted else c.hairline).padding(horizontal = Space.m),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Txt(if (slipped) "UNDO SLIP" else "I SLIPPED", Type.nav.copy(fontSize = 15.sp, lineHeight = 18.sp), if (slipped) c.ink else c.inkMuted, unscaled = true)
+                }
+            }
         }
     }
 }
@@ -209,7 +231,7 @@ private fun LogBlock(count: Int, target: Int, onClick: () -> Unit) {
     }
     Box(
         Modifier.graphicsLayer { scaleX = pop.value; scaleY = pop.value }
-            .tap(pressedScale = 0.9f, label = if (done) "Undo" else "Done") { onClick() }
+            .tap(pressedScale = 0.9f, haptic = true, label = if (done) "Undo" else "Done") { onClick() }
             .size(72.dp, 44.dp).border(1.5.dp, if (count > 0) c.accent else c.inkMuted.copy(alpha = 0.5f)),
         contentAlignment = Alignment.Center,
     ) {
@@ -299,7 +321,7 @@ fun HabitDetailScreen(id: String) {
 
                 val fill by animateColorAsState(if (filled) c.accent else Color.Transparent, tween(200), label = "btn")
                 Box(
-                    Modifier.padding(top = Space.l).fillMaxWidth().tap(pressedScale = 0.97f, label = button) { logOnce(habit, count, today) }
+                    Modifier.padding(top = Space.l).fillMaxWidth().tap(pressedScale = 0.97f, haptic = true, label = button) { logOnce(habit, count, today) }
                         .heightIn(min = 56.dp).background(fill).border(1.5.dp, if (filled) c.accent else c.hairline),
                     contentAlignment = Alignment.Center,
                 ) {
