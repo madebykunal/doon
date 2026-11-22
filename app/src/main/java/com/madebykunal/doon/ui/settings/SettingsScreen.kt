@@ -172,6 +172,7 @@ fun SettingsPage(id: String) {
                     "about" -> {
                         SettingRow("Version", right = { Txt(BuildConfig.VERSION_NAME, Type.secondary, colors.inkMuted) })
                         SettingRow("Your data", "Everything stays on this phone. Doon has no account, no tracking and no internet access.")
+                        SettingRow("Onboarding", "See the welcome page again", right = { Icon(Ic.ChevronRight, colors.inkMuted, 20.dp) }) { Prefs.setOnboarded(false) }
                     }
                     "developer" -> SettingRow("Seed performance data", "2 000 to-dos, 30 lists, 50 countdowns") {
                         Seed.performance(Ui.today)
@@ -290,6 +291,16 @@ private fun AppearancePage(onCustom: () -> Unit) {
         listOf("circle" to "Circle", "square" to "Square", "block" to "Block").forEach { (id, label) ->
             Choice(label, Prefs.plusShape == id, Modifier.weight(1f)) { Prefs.setPlusShape(id) }
         }
+    }
+    SubLabel("Week strip")
+    Row(Modifier.fillMaxWidth().padding(horizontal = GUTTER, vertical = Space.s), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf("circle" to "Round days", "square" to "Square days").forEach { (id, label) ->
+            Choice(label, Prefs.stripShape == id, Modifier.weight(1f)) { Prefs.setStripShape(id) }
+        }
+    }
+    SwitchRow("Hide the week strip", Prefs.weekStripHidden, "Tap the week mark next to the date to show it") {
+        Prefs.setWeekStripHidden(it)
+        Ui.stripOpen = false
     }
 }
 

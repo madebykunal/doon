@@ -165,9 +165,10 @@ private fun HabitRow(day: HabitDay, today: DateStr, modifier: Modifier) {
     val streak = HabitMath.currentStreak(s, day.logs, today)
     val best = remember(day.logs, today) { HabitMath.bestStreak(s, day.logs, today) }
     val stats = when {
-        quit -> if (best > streak) "Longest $best" else "Your longest run"
+        quit && best > streak -> "Longest run: $best ${if (best == 1) "day" else "days"}"
+        quit -> "Since ${Dates.format(habit.startDate, "d MMM")}"
         streak > 0 -> "$streak in a row · best $best"
-        best > 0 -> "Best run $best"
+        best > 0 -> "Best run: $best ${if (best == 1) "day" else "days"}"
         else -> HabitMath.scheduleLine(s, Prefs.weekStart)
     }
     Column(
@@ -176,41 +177,43 @@ private fun HabitRow(day: HabitDay, today: DateStr, modifier: Modifier) {
             .tap(pressedColor = c.hairline, pressedScale = 0.985f, label = habit.title) { Nav.push(Route.HabitDetail(habit.id)) }
             .padding(Space.l),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.l)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Txt(habit.title, Type.bodyStrong, maxLines = 2)
-                habit.cue?.takeIf { it.isNotBlank() }?.let { Txt(it, Type.caption, c.inkMuted, maxLines = 1) }
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Space.l)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Txt(habit.title, Type.bodyStrong.copy(fontSize = 19.sp, lineHeight = 24.sp), maxLines = 2)
+                habit.cue?.takeIf { it.isNotBlank() }?.let { Txt(it, Type.secondary, c.inkMuted, maxLines = 1) }
+                Txt(stats, Type.caption, c.inkMuted, maxLines = 1)
             }
             if (quit) {
                 Column(horizontalAlignment = Alignment.End) {
-                    Txt(streak.toString().padStart(2, '0'), Type.display.copy(fontSize = 30.sp, lineHeight = 32.sp), c.accentText, maxLines = 1, tabularNums = true, unscaled = true)
+                    Txt(streak.toString().padStart(2, '0'), Type.display.copy(fontSize = 34.sp, lineHeight = 36.sp), c.accentText, maxLines = 1, tabularNums = true, unscaled = true)
                     Txt(HabitMath.streakUnit(s, streak).uppercase(), Type.label.copy(fontSize = 10.sp), c.inkMuted, unscaled = true)
                 }
             } else {
                 LogBlock(day.count, habit.target) { logOnce(habit, day.count, today) }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(top = Space.m), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Space.m)) {
-            if (Prefs.habitWeekDots) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    (0 until 7).forEach { i ->
-                        val date = Dates.addDays(today, i - 6)
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Box(Modifier.size(12.dp).weekDay(HabitMath.dayState(s, day.logs, date, today), c))
-                            Txt(Dates.format(date, "EEEEE"), Type.micro.copy(fontSize = 9.sp, lineHeight = 10.sp), if (i == 6) c.ink else c.inkMuted, unscaled = true)
+        if (Prefs.habitWeekDots || quit) {
+            Row(Modifier.fillMaxWidth().padding(top = Space.l), verticalAlignment = Alignment.CenterVertically) {
+                if (Prefs.habitWeekDots) {
+                    Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        (0 until 7).forEach { i ->
+                            val date = Dates.addDays(today, i - 6)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Box(Modifier.size(14.dp).weekDay(HabitMath.dayState(s, day.logs, date, today), c))
+                                Txt(Dates.format(date, "EEEEE"), Type.micro.copy(fontSize = 9.sp, lineHeight = 10.sp), if (i == 6) c.ink else c.inkMuted, unscaled = true)
+                            }
                         }
                     }
-                }
-            }
-            Txt(stats, Type.caption, c.inkMuted, Modifier.weight(1f), maxLines = 1)
-            if (quit) {
-                val slipped = day.count > 0
-                Box(
-                    Modifier.tap(pressedScale = 0.92f, haptic = true, label = if (slipped) "Undo slip" else "I slipped") { logOnce(habit, day.count, today) }
-                        .heightIn(min = 36.dp).border(1.dp, if (slipped) c.inkMuted else c.hairline).padding(horizontal = Space.m),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Txt(if (slipped) "UNDO SLIP" else "I SLIPPED", Type.nav.copy(fontSize = 15.sp, lineHeight = 18.sp), if (slipped) c.ink else c.inkMuted, unscaled = true)
+                } else Spacer(Modifier.weight(1f))
+                if (quit) {
+                    val slipped = day.count > 0
+                    Box(
+                        Modifier.tap(pressedScale = 0.92f, haptic = true, label = if (slipped) "Undo slip" else "I slipped") { logOnce(habit, day.count, today) }
+                            .heightIn(min = 40.dp).border(1.dp, if (slipped) c.inkMuted else c.hairline).padding(horizontal = Space.m),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Txt(if (slipped) "UNDO SLIP" else "I SLIPPED", Type.nav.copy(fontSize = 15.sp, lineHeight = 18.sp), if (slipped) c.ink else c.inkMuted, unscaled = true)
+                    }
                 }
             }
         }

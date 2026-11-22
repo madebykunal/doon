@@ -166,22 +166,22 @@ fun TodoRow(todo: Todo, count: Int, rightLabel: String, onSwipeRight: (String) -
             Modifier.fillMaxWidth().hairlineBottom(c.hairline, TEXT_INSET).heightIn(min = 60.dp)
                 .drawBehind { if (bar != null) drawRect(bar, size = Size(3.dp.toPx(), size.height)) }
                 .padding(start = GUTTER - 11.dp, end = GUTTER),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
         ) {
-            Checkbox(todo.completed) { TodoActions.toggle(todo.id) }
+            Box(Modifier.padding(top = 8.dp)) { Checkbox(todo.completed) { TodoActions.toggle(todo.id) } }
             Column(Modifier.weight(1f)) {
                 val desc = todo.description
                 StrikeText(
                     todo.text,
                     todo.completed,
                     Modifier.fillMaxWidth().tap(label = "Open details") { openDetails(todo.id) }
-                        .padding(start = 2.dp, top = 14.dp, bottom = if (desc != null) 2.dp else 14.dp),
+                        .padding(start = 2.dp, top = 18.dp, bottom = if (desc != null) 2.dp else 18.dp),
                 )
                 if (desc != null) {
                     Txt(desc, Type.caption, c.inkMuted, Modifier.fillMaxWidth().tap { openDetails(todo.id) }.padding(start = 2.dp, bottom = Space.m), maxLines = 2)
                 }
             }
-            Row(Modifier.padding(start = Space.s), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(start = Space.s, top = 23.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (todo.rolloverCount >= ROLLOVER_BADGE_AT) Txt("↻${todo.rolloverCount}", Type.micro, c.inkMuted)
                 val remindAt = todo.remindAt
                 if (remindAt != null) {

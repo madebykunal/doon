@@ -210,7 +210,7 @@ private fun Shell(imeVisible: Boolean) {
         }
         if (!imeVisible) {
             androidx.compose.animation.AnimatedVisibility(
-                onToday && !Prefs.weekStripTop,
+                onToday && !Prefs.weekStripTop && !Prefs.weekStripHidden,
                 enter = androidx.compose.animation.expandVertically(tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing)) + fadeIn(tween(200)),
                 exit = androidx.compose.animation.shrinkVertically(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) + fadeOut(tween(140)),
             ) { WeekStripBar() }

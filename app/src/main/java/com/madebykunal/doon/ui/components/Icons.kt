@@ -28,6 +28,7 @@ enum class Ic(vararg val d: String) {
     Pencil("M4 20v-4L15 5l4 4L8 20z", "M12 8l4 4", "M13 20h7"),
     Plus("M5 12h14", "M12 5v14"),
     Minus("M5 12h14"),
+    Week("M3 14v6", "M6 14v6", "M9 14v6", "M12 8v12", "M15 14v6", "M18 14v6", "M21 14v6", "M10 4h4"),
     Menu("M4 7h16", "M4 12h16", "M4 17h16"),
     Reorder("m3 8 4-4 4 4", "M7 4v16", "m21 16-4 4-4-4", "M17 20V4"),
     Grip("M5 9h14", "M5 15h14"),
@@ -52,7 +53,7 @@ fun Icon(ic: Ic, color: Color, size: Dp = 20.dp, stroke: Float = 2f, modifier: M
     Canvas(modifier.size(size)) {
         val s = this.size.width / 24f
         scale(s, s, Offset.Zero) {
-            val sharp = ic == Ic.Pencil
+            val sharp = ic == Ic.Pencil || ic == Ic.Week
             val style = Stroke(width = stroke, cap = if (sharp) StrokeCap.Butt else StrokeCap.Round, join = if (sharp) StrokeJoin.Miter else StrokeJoin.Round)
             ic.paths.forEach { drawPath(it, color, style = style) }
         }

@@ -1,5 +1,9 @@
 package com.madebykunal.doon.ui.today
 
+import androidx.compose.foundation.layout.offset
+import com.madebykunal.doon.ui.theme.HIT_TARGET
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -104,7 +108,13 @@ fun TodayScreen() {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             DayHeader(Ui.selectedDate)
-            if (Prefs.weekStripTop) WeekStripBar()
+            if (Prefs.weekStripHidden) {
+                AnimatedVisibility(
+                    Ui.stripOpen,
+                    enter = expandVertically(tween(260, easing = androidx.compose.animation.core.FastOutSlowInEasing), Alignment.Top) + androidx.compose.animation.fadeIn(tween(200)),
+                    exit = shrinkVertically(tween(200), Alignment.Top) + androidx.compose.animation.fadeOut(tween(140)),
+                ) { WeekStripBar() }
+            } else if (Prefs.weekStripTop) WeekStripBar()
             DayPager()
         }
         TodayPill()
@@ -158,6 +168,26 @@ private fun DayHeader(date: DateStr) {
     }
     Box(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)) {
         Row(Modifier.fillMaxWidth().height(HEADER).padding(start = Space.l, end = Space.xs), verticalAlignment = Alignment.CenterVertically) {
+            if (Prefs.weekStripHidden) {
+                val c = colors
+                val lift by androidx.compose.animation.core.animateFloatAsState(
+                    if (Ui.stripOpen) 1f else 0f,
+                    androidx.compose.animation.core.spring(dampingRatio = 0.55f, stiffness = 500f),
+                    label = "weekIcon",
+                )
+                Box(
+                    Modifier.offset(x = (-8).dp).size(HIT_TARGET).tap(pressedScale = 0.85f, haptic = true, label = if (Ui.stripOpen) "Hide the week" else "Show the week") {
+                        Ui.stripOpen = !Ui.stripOpen
+                        if (!Ui.stripOpen) Ui.calendarOpen = false
+                    },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Ic.Week, lerp(c.ink, c.accentText, lift), 22.dp, stroke = 1.7f,
+                        modifier = Modifier.graphicsLayer { scaleY = 1f - 0.12f * lift; translationY = -2.dp.toPx() * lift },
+                    )
+                }
+            }
             var mode by remember(date) { mutableIntStateOf(0) }
             val local = java.time.LocalDate.parse(date)
             val yearDays = local.lengthOfYear()
@@ -212,8 +242,8 @@ fun WeekStripBar() {
             var dragged = 0f
             detectVerticalDragGestures(onDragStart = { dragged = 0f }, onDragEnd = {
                 val threshold = with(density) { 24.dp.toPx() }
-                val opening = if (Prefs.weekStripTop) dragged > threshold else dragged < -threshold
-                val closing = if (Prefs.weekStripTop) dragged < -threshold else dragged > threshold
+                val opening = if (Prefs.weekStripTop || Prefs.weekStripHidden) dragged > threshold else dragged < -threshold
+                val closing = if (Prefs.weekStripTop || Prefs.weekStripHidden) dragged < -threshold else dragged > threshold
                 if (opening && !Ui.calendarOpen) {
                     Editor.commitAll()
                     Ui.calendarOpen = true
@@ -277,7 +307,7 @@ private fun StripCalendar(selected: DateStr, today: DateStr) {
                         if (Dates.month(date) == month) {
                             val isSelected = date == selected
                             Box(
-                                Modifier.size(38.dp).background(if (isSelected) ink else Color.Transparent, CircleShape).tap(label = Dates.format(date, "EEEE d MMMM")) {
+                                Modifier.size(38.dp).background(if (isSelected) ink else Color.Transparent, markerShape).tap(label = Dates.format(date, "EEEE d MMMM")) {
                                     Ui.selectedDate = date
                                     Ui.calendarOpen = false
                                 },
@@ -290,7 +320,7 @@ private fun StripCalendar(selected: DateStr, today: DateStr) {
                                     tabularNums = true,
                                     unscaled = true,
                                 )
-                                if (date == today && !isSelected) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 3.dp).size(4.dp).background(ink, CircleShape))
+                                if (date == today && !isSelected) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 3.dp).size(4.dp).background(ink, markerShape))
                             }
                         }
                     }
@@ -305,13 +335,13 @@ private fun DayCell(date: DateStr, width: Dp, isSelected: Boolean, isToday: Bool
     val c = colors
     val ink = c.onAccent
     Box(Modifier.width(width).fillMaxHeight().tap(label = Dates.format(date, "EEEE d MMMM")) { Ui.selectedDate = date }, contentAlignment = Alignment.Center) {
-        if (isSelected) Box(Modifier.size(54.dp).background(ink.copy(alpha = 0.18f), CircleShape))
-        if (isDrop) Box(Modifier.size(54.dp).border(2.dp, ink, CircleShape))
+        if (isSelected) Box(Modifier.size(54.dp).background(ink.copy(alpha = 0.18f), markerShape))
+        if (isDrop) Box(Modifier.size(54.dp).border(2.dp, ink, markerShape))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Txt(Dates.format(date, "dd/MM"), Type.micro.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold), ink, unscaled = true, tabularNums = true)
             Txt(Dates.format(date, "EEE").uppercase(), Type.nav.copy(fontSize = 20.sp, lineHeight = 23.sp), ink, unscaled = true)
         }
-        if (isToday && !isSelected) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp).size(4.dp).background(ink, CircleShape))
+        if (isToday && !isSelected) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp).size(4.dp).background(ink, markerShape))
     }
 }
 
@@ -361,3 +391,5 @@ private fun ClearedStamp() {
         Txt("CLEARED ✓", Type.nav, c.accentText)
     }
 }
+
+private val markerShape: Shape get() = if (Prefs.stripShape == "square") RectangleShape else CircleShape

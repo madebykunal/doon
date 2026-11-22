@@ -15,6 +15,7 @@ object Ui {
     var today by mutableStateOf(Dates.today()); private set
     var selectedDate by mutableStateOf(today)
     var calendarOpen by mutableStateOf(false)
+    var stripOpen by mutableStateOf(false)
     var cleared by mutableIntStateOf(0)
     var recenter by mutableIntStateOf(0)
 

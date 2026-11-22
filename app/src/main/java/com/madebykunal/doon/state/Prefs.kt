@@ -85,7 +85,13 @@ object Prefs {
     var plusShape by mutableStateOf("circle")
         private set
     @set:JvmName("assign_listBigCounts")
-    var listBigCounts by mutableStateOf(false)
+    var listBigCounts by mutableStateOf(true)
+        private set
+    @set:JvmName("assign_stripShape")
+    var stripShape by mutableStateOf("circle")
+        private set
+    @set:JvmName("assign_weekStripHidden")
+    var weekStripHidden by mutableStateOf(false)
         private set
     @set:JvmName("assign_onboarded")
     var onboarded by mutableStateOf(false)
@@ -119,6 +125,8 @@ object Prefs {
         plusShape = prefs.getString("plusShape", plusShape)!!
         listBigCounts = prefs.getBoolean("listBigCounts", listBigCounts)
         onboarded = prefs.getBoolean("onboarded", onboarded)
+        stripShape = prefs.getString("stripShape", stripShape)!!
+        weekStripHidden = prefs.getBoolean("weekStripHidden", weekStripHidden)
         taskSound = prefs.getString("taskSound", taskSound)!!
         countdownSound = prefs.getString("countdownSound", countdownSound)!!
     }
@@ -157,5 +165,7 @@ object Prefs {
     fun setTabStyle(v: String) { tabStyle = v; saved("tabStyle") { putString("tabStyle", v) } }
     fun setPlusShape(v: String) { plusShape = v; saved("plusShape") { putString("plusShape", v) } }
     fun setListBigCounts(v: Boolean) { listBigCounts = v; saved("listBigCounts") { putBoolean("listBigCounts", v) } }
+    fun setStripShape(v: String) { stripShape = v; saved("stripShape") { putString("stripShape", v) } }
+    fun setWeekStripHidden(v: Boolean) { weekStripHidden = v; saved("weekStripHidden") { putBoolean("weekStripHidden", v) } }
     fun setOnboarded(v: Boolean) { onboarded = v; saved("onboarded") { putBoolean("onboarded", v) } }
 }
